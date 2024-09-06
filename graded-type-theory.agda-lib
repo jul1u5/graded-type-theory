@@ -2,7 +2,8 @@ name: graded-type-theory
 depend: standard-library
 include: .
 flags:
-  --without-K
-  --safe
+  -- --without-K
+  -- --safe
   --hidden-argument-puns
+  --allow-unsolved-metas
   -WnoUnsupportedIndexedMatch
