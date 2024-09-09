@@ -33,7 +33,6 @@ private
     n m : Nat
     Γ Γ′ Δ Δ′ Θ Θ′ : Con _
     A B C D : Type
-    𝓐 𝓑 𝓒 𝓓 : ConItem _
     ρ σ E E′ : Ren _ _
     t t′ u u′ : _ ⊢ _
     v v′ v₁ v₁′ v₂ v₂′ v₃ v₃′ : _ ⊢ᵥ _
@@ -50,16 +49,13 @@ ren⦅⦆≡⦅ren⦆ (suc t , suc v)             = cong suc (ren⦅⦆≡⦅ren
 ren⦅⦆≡⦅ren⦆ (_ , star)                  = refl
 ren⦅⦆≡⦅ren⦆ (! t , ! v)                 = cong !_ (ren⦅⦆≡⦅ren⦆ (t , v))
 ren⦅⦆≡⦅ren⦆ (⟨ t₁ , t₂ ⟩ , ⟨ v₁ , v₂ ⟩) = cong₂ ⟨_,_⟩ (ren⦅⦆≡⦅ren⦆ (t₁ , v₁)) (ren⦅⦆≡⦅ren⦆ (t₂ , v₂))
-ren⦅⦆≡⦅ren⦆ (_ , ref x)                 = refl
-
 
 -- Equality of eliminators and stacks via a weakening
 
-ren1ˢ-interchange : {𝓐 : ConItem C}
-                   {Γ : Con n} {Δ : Con m}
-                   (S : Stack Δ A B)
-                   (ρ : Ren Γ Δ)
-                 → ren1ˢ 𝓐 (renˢ ρ S) ≡ renˢ (liftRen ρ) (ren1ˢ 𝓐 S)
+ren1ˢ-interchange : {Γ : Con n} {Δ : Con m}
+                    (S : Stack Δ A B)
+                    (ρ : Ren Γ Δ)
+                 → ren1ˢ C (renˢ ρ S) ≡ renˢ (liftRen ρ) (ren1ˢ C S)
 ren1ˢ-interchange = {!!}
 
 ------------------------------------------------------------------------
@@ -67,20 +63,20 @@ ren1ˢ-interchange = {!!}
 
 -- Variable lookup is deterministic.
 
-lookup-det : {H : Heap Γ} {o : HeapObject Γ 𝓐} {o′ : HeapObject Γ 𝓐}
+lookup-det : {H : Heap Γ} {o : HeapObject Γ A} {o′ : HeapObject Γ A}
            → H ⊢ x ↦[ p - r ] o  ⨾ H′
            → H ⊢ x ↦[ p′ - r ] o′ ⨾ H″
            → p ≡ p′ × o ≡ o′ × H′ ≡ H″
-lookup-det (vz[] p-𝟙≡q) (vz[] p-𝟙≡q′) =
-  case -≡-functional p-𝟙≡q p-𝟙≡q′ of λ {
-    refl →
-  refl , refl , refl }
+lookup-det (vz[] p-r≡q) (vz[] p-r≡q′) =
+  case -≡-functional p-r≡q p-r≡q′ of λ {
+    refl → refl , refl , refl
+  }
 lookup-det (vs[] x) (vs[] y) =
   case lookup-det x y of λ {
-    (refl , refl , refl) →
-  refl , refl , refl }
+    (refl , refl , refl) → refl , refl , refl
+  }
 
-lookup-det′ : {H : Heap Γ} {o : HeapObject Γ 𝓐} {o′ : HeapObject Γ 𝓐}
+lookup-det′ : {H : Heap Γ} {o : HeapObject Γ A} {o′ : HeapObject Γ A}
            → H ⊢ x ↦ o
            → H ⊢ x ↦ o′
            → o ≡ o′
@@ -101,14 +97,14 @@ lookup-det′ (_ , vs[] d) (_ , vs[] d′) =
 
 -- Lookup without heap update always succeeds
 
-lookup′ : (H : Heap Γ) (x : Γ ∋ᶜ 𝓐)
-        → ∃ λ (o : HeapObject Γ 𝓐) → H ⊢ x ↦ o
+lookup′ : (H : Heap Γ) (x : Γ ∋ᶜ A)
+        → ∃ λ (o : HeapObject Γ A) → H ⊢ x ↦ o
 lookup′ (H ∙[ _ ]ₕ o) vz      = ren1ᵒ o , _ , vz[] p-𝟘≡p
 lookup′ (H ∙[ _ ]ₕ _) (vs x) =
   let (o , _ , d) = lookup′ H x
    in ren1ᵒ o , _ , vs[] d
 
-vs↦ : {Hᵢ Hₒ : Heap (Γ ∙ 𝓑)}
+vs↦ : {Hᵢ Hₒ : Heap (Γ ∙ B)}
     → Hᵢ ⊢ vs x ↦[ p - q ] o ⨾ Hₒ
     → ∃₅ λ Hᵢ′ o′ Hₒ′ p′ o″
         → Hᵢ′ ∙[ p′ ]ₕ o″ ≡ Hᵢ
@@ -117,14 +113,14 @@ vs↦ : {Hᵢ Hₒ : Heap (Γ ∙ 𝓑)}
         × Hᵢ′ ⊢ x ↦[ p - q ] o′ ⨾ Hₒ′
 vs↦ (vs[] l) = _ , _ , _ , _ , _ , refl , refl , refl , l
 
-renᵒ-id : (o : HeapObject Γ 𝓐) → renᵒ idRen o ≡ o
+renᵒ-id : (o : HeapObject Γ A) → renᵒ idRen o ≡ o
 renᵒ-id (value v E) = cong (value v) (•-identityˡ E)
 renᵒ-id (array _)   = refl
 renᵒ-id lin         = refl
 renᵒ-id ↯           = refl
 
 renᵒ-• : (ρ : Ren Γ Δ) (σ : Ren Δ Θ)
-       → {o : HeapObject Θ 𝓐}
+       → {o : HeapObject Θ A}
        → renᵒ ρ (renᵒ σ o) ≡ renᵒ (ρ • σ) o
 renᵒ-• ρ σ {o = value v E} = cong (value v) (•-assoc ρ σ E)
 renᵒ-• ρ σ {o = array xs}  = refl
@@ -136,9 +132,9 @@ renᵒ-value : renᵒ ρ o ≡ value v E
 renᵒ-value {o = value _ _} refl = _ , refl , refl
 
 renᵒ→renᵒ-remap : (ρ : Ren Γ Δ)
-                → (x : Δ ∋ᶜ 𝓑)
-                → {o  : HeapObject Δ 𝓐}
-                → {o′ : HeapObject Γ 𝓐}
+                → (x : Δ ∋ᶜ B)
+                → {o  : HeapObject Δ A}
+                → {o′ : HeapObject Γ A}
                 → renᵒ ρ o ≡ o′
                 → renᵒ (remapRen x ρ) o ≡ ren1ᵒ o′
 renᵒ→renᵒ-remap ρ x {o = value v E} refl = cong (value v) {!!}
@@ -157,7 +153,7 @@ value-inj : ∀ {n m m′} {Γ : Con n} {Δ : Con m} {Δ′ : Con m′}
             }}
 value-inj {v} {v′} refl = refl , refl , refl , refl
 
-renᵒ-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ) (o : HeapObject Θ 𝓐)
+renᵒ-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ) (o : HeapObject Θ A)
          → renᵒ ρ (renᵒ σ o) ≡ renᵒ (ρ • σ) o
 renᵒ-comp ρ σ (value x E) = cong (value x) (•-assoc ρ σ E)
 renᵒ-comp ρ σ (array x) = refl
@@ -165,7 +161,7 @@ renᵒ-comp ρ σ lin = refl
 renᵒ-comp ρ σ ↯ = refl
 
 renᵒ-inj : (ρ : Ren Γ Δ)
-         → (o o′ : HeapObject Δ 𝓐)
+         → (o o′ : HeapObject Δ A)
          → renᵒ ρ o ≡ renᵒ ρ o′
          → o ≡ o′
 renᵒ-inj ρ (value v E) (value v′ E′) ≡    =
@@ -178,8 +174,8 @@ renᵒ-inj ρ (array xs) (array .xs)    refl = refl
 renᵒ-inj ρ lin         lin           _    = refl
 renᵒ-inj ρ ↯           ↯             _    = refl
 
-renᵒ-interchange : (ρ : Ren Γ Δ) (o : HeapObject Δ 𝓐)
-                 → ren1ᵒ {𝓑 = 𝓑} (renᵒ ρ o) ≡ renᵒ (liftRen ρ) (ren1ᵒ o)
+renᵒ-interchange : (ρ : Ren Γ Δ) (o : HeapObject Δ A)
+                 → ren1ᵒ {B = B} (renᵒ ρ o) ≡ renᵒ (liftRen ρ) (ren1ᵒ o)
 renᵒ-interchange = {!!}
 
 -∘ₑ≡ : ren ρ u ≡ ren σ u′
@@ -203,7 +199,7 @@ renᵒ-interchange = {!!}
 -∘ₑ≡ {u = write u u₁ u₂} = {!!}
 -∘ₑ≡ {u = free u} = {!!}
 
--- renᵒ-inj : {o o′ : HeapObject Γ 𝓐} →
+-- renᵒ-inj : {o o′ : HeapObject Γ A} →
 --           renᵒ ρ o ≡ renᵒ ρ o′ →
 --           o ≡ o′
 -- renᵒ-inj {o = value v E} {value v′ E′} vρE≡v′ρE′ with value-inj vρE≡v′ρE′
@@ -217,7 +213,7 @@ renᵒ-array : {xs : Vec Nat n}
            → o ≡ array xs
 renᵒ-array {o = array _} refl = refl
 
-lookup→write : {Γ : Con n} {H H′ : Heap Γ} {x : Γ ∋ᶜ ref}
+lookup→write : {Γ : Con n} {H H′ : Heap Γ} {x : Γ ∋ᶜ Arr}
              → ∀ {size} → {xs : Vec Nat size}
              → H ⊢ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ H′
              → (i : Fin size) (v : Nat)
@@ -232,3 +228,20 @@ lookup→write {H = H ∙[ p ]ₕ o′} {x = vs x} (vs[ ren-o≡array ] l ) i v 
   H′ ∙[ p ]ₕ o′ , vs u
   }
   }
+
+↦[]→↦[-] : p - q ≡ r
+         → H ⊢ x ↦[ p ] o
+         → ∃ λ H′
+             → H ⊢ x ↦[ p - q ] o ⨾ H′
+↦[]→↦[-] p-q≡r (vz[] _) = _ , vz[] p-q≡r
+↦[]→↦[-] p-q≡r (vs[] l) = case ↦[]→↦[-] p-q≡r l of λ { (_ , l) → _ , (vs[] l) }
+
+↦[-]→↦[] : H ⊢ x ↦[ p - q ] o ⨾ H′
+         → H ⊢ x ↦[ p ] o
+↦[-]→↦[] (vz[] _) = vz[] p-𝟘≡p
+↦[-]→↦[] (vs[] l) = vs[] ↦[-]→↦[] l
+
+↦[-]→-≡ : H ⊢ x ↦[ p - q ] o ⨾ H′
+        → ∃ λ r → p - q ≡ r
+↦[-]→-≡ (vz[] p-q≡r) = _ , p-q≡r
+↦[-]→-≡ (vs[] l) = ↦[-]→-≡ l

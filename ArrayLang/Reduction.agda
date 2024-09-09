@@ -60,45 +60,45 @@ mutual
       ι : TypeOfSemantics
 
   data _⇒[_]_ {B} : State Γ Δ A B → TypeOfSemantics → State Γ′ Δ′ A′ B → Set ℓ where
-    varᵤ : {x : Δ ∋ᶜ var A}
+    varᵤ : {x : Δ ∋ᶜ A}
          → (v : Δ′ ⊢ᵥ A)
          → H ⊢ renVar E x ↦ value v E′
-         → ⟪ H , ` x    , E  , S ⟫
+         → ⟪ H  , ` x    , E  , S ⟫
            ⇒ᵤ
-           ⟪ H , ⦅ v ⦆ᵛ , E′ , S ⟫
+           ⟪ H  , ⦅ v ⦆ᵛ , E′ , S ⟫
 
-    var : ⦃ Graded ι ⦄
-        → {x : Δ ∋ᶜ var A}
-        → (v : Δ′ ⊢ᵥ A)
-        → H ⊢ renVar E x ↦[- ∣ S ∣ ] value v E′ ⨾ H′
-        → ⟪ H  , ` x    , E  , S ⟫
-          ⇒[ ι ]
-          ⟪ H′ , ⦅ v ⦆ᵛ , E′ , S ⟫
-
-    app₁ : {t : Δ ⊢ A [ p ]⇒ B} {u : Δ ⊢ A}
-         → ⟪ H  , t ∘⟨ p ⟩ u ,      E  ,                                S ⟫
+    var  : ⦃ Graded ι ⦄
+         → {x : Δ ∋ᶜ A}
+         → (v : Δ′ ⊢ᵥ A)
+         → H ⊢ renVar E x ↦[- ∣ S ∣ ] value v E′ ⨾ H′
+         → ⟪ H  , ` x    , E  , S ⟫
            ⇒[ ι ]
-           ⟪ H  , t          ,      E  ,              (-∘⟨ p ⟩ₑ u) E  ∙ S ⟫
+           ⟪ H′ , ⦅ v ⦆ᵛ , E′ , S ⟫
 
-    -- If the application (and as a result the lambda) has multiplicity 𝟘, we just evaluate the body.
-    app₂ₑ : {t : Δ ∙ var A ⊢ B} {u : Δ′ ⊢ A}
-         → let H′ = H ∙[ 𝟘 ]ₕ ↯ in
-           ⟪ H  , lam 𝟘 t    ,      E′ ,              (-∘⟨ 𝟘 ⟩ₑ u) E  ∙ S ⟫
-           ⇒[ ι ]
-           ⟪ H′ , t          , liftRen E′ ,                           ren1ˢ _ S ⟫
+    app₁  : {t : Δ ⊢ A [ p ]⇒ B} {u : Δ ⊢ A}
+          → ⟪ H  , t ∘⟨ p ⟩ u ,      E  ,                                   S ⟫
+            ⇒[ ι ]
+            ⟪ H  , t          ,      E  ,                 (-∘⟨ p ⟩ₑ u) E  ∙ S ⟫
+
+    -- If the argument is erased (has multiplicity 𝟘), we ignore it and just evaluate the body.
+    app₂ₑ : {t : Δ ∙ A ⊢ B} {u : Δ′ ⊢ A}
+          → let H′ = H ∙[ 𝟘 ]ₕ ↯ in
+            ⟪ H  , lam 𝟘 t    ,         E′ ,              (-∘⟨ 𝟘 ⟩ₑ u) E  ∙ S ⟫
+            ⇒[ ι ]
+            ⟪ H′ , t          , liftRen E′ ,                        ren1ˢ _ S ⟫
 
     -- Alternatively, we evaluate the argument, and then proceed to the body.
-    app₂ : {t : Δ ∙ var A ⊢ B} {u : Δ′ ⊢ A}
-         → p PE.≢ 𝟘
-         → ⟪ H  , lam p t    ,      E′ ,              (-∘⟨ p ⟩ₑ u) E  ∙ S ⟫
-           ⇒[ ι ]
-           ⟪ H  , u          ,      E  , ((_ , lam p t) ∘⟨ p ⟩ₑ-)  E′ ∙ S ⟫
-    app₃ : {t : Δ ∙ var A ⊢ B}
-         → (v@(u , _) : Δ′ ⊢ᵥ A)
-         → let H′ = H ∙[ ∣ S ∣ · p ]ₕ value v E in
-           ⟪ H  , u          ,      E  , ((_ , lam p t) ∘⟨ p ⟩ₑ-)  E′ ∙ S ⟫
-           ⇒[ ι ]
-           ⟪ H′ , t          , liftRen E′ ,                           ren1ˢ _ S ⟫
+    app₂  : {t : Δ ∙ A ⊢ B} {u : Δ′ ⊢ A}
+          → p PE.≢ 𝟘
+          → ⟪ H  , lam p t    ,         E′ ,              (-∘⟨ p ⟩ₑ u) E  ∙ S ⟫
+            ⇒[ ι ]
+            ⟪ H  , u          ,         E  , ((_ , lam p t) ∘⟨ p ⟩ₑ-)  E′ ∙ S ⟫
+    app₃  : {t : Δ ∙ A ⊢ B}
+          → (v@(u , _) : Δ′ ⊢ᵥ A)
+          → let H′ = H ∙[ ∣ S ∣ · p ]ₕ value v E in
+            ⟪ H  , u          ,         E  , ((_ , lam p t) ∘⟨ p ⟩ₑ-)  E′ ∙ S ⟫
+            ⇒[ ι ]
+            ⟪ H′ , t          , liftRen E′ ,                        ren1ˢ _ S ⟫
 
     suc₁ : ⟪ H , suc t , E ,        S ⟫
            ⇒[ ι ]
@@ -121,60 +121,60 @@ mutual
 
     prod-cong₁ : {t₁ : Δ ⊢ A} {t₂ : Δ ⊢ B}
                  {E : Ren Γ Δ}
-               → ⟪ H , ⟨ t₁ , t₂ ⟩             , E  ,                S ⟫
+               → ⟪ H , ⟨ t₁ , t₂ ⟩               , E     ,                S ⟫
                  ⇒[ ι ]
-                 ⟪ H , t₁                      , E  , ⟨-, t₂ ⟩ₑ E  ∙ S ⟫
+                 ⟪ H , t₁                        , E     , ⟨-, t₂ ⟩ₑ E  ∙ S ⟫
     prod-cong₂ : (v₁ : Δ₁ ⊢ᵥ A) {t₂ : Δ ⊢ B}
                  {E : Ren Γ Δ} {E₁ : Ren Γ Δ₁}
-               → ⟪ H , ⦅ v₁ ⦆ᵛ                 , E₁ , ⟨-, t₂ ⟩ₑ E  ∙ S ⟫
+               → ⟪ H , ⦅ v₁ ⦆ᵛ                   , E₁    , ⟨-, t₂ ⟩ₑ E  ∙ S ⟫
                  ⇒[ ι ]
-                 ⟪ H , t₂                      , E  , ⟨ v₁ ,-⟩ₑ E₁ ∙ S ⟫
+                 ⟪ H , t₂                        , E     , ⟨ v₁ ,-⟩ₑ E₁ ∙ S ⟫
     prod-cong₃ : (v₁@(t₁ , _) : Δ₁ ⊢ᵥ A) (v₂@(t₂ , _) : Δ₂ ⊢ᵥ B)
                  {E₁ : Ren Γ Δ₁} {E₂ : Ren Γ Δ₂}
-               → ⟪ H , t₂                      , E₂ , ⟨ v₁ ,-⟩ₑ E₁ ∙ S ⟫
+               → ⟪ H , t₂                        , E₂    , ⟨ v₁ ,-⟩ₑ E₁ ∙ S ⟫
                  ⇒[ ι ]
                  ⟪ H , ⟨ ren E₁ t₁ , ren E₂ t₂ ⟩ , idRen ,                S ⟫
-    -- Maybe there's a better way to do this, without the two weakenings
+    --                   ^^^^^^^^^   ^^^^^^^^^     ^^^^^
+    -- This doesn't look nice, but how can we deal with two terms in different environments?
+    --
+    -- We could put the evaluated elements on the heap as values:
+    -- * add `value v₁ E₁` to H in prod-cong₂, and
+    -- * add `value v₂ E₂` to H in prod-cong₃.
+    --
+    -- However, this would require us to weaken t₂ (in prod-cong₂) which is not ideal.
 
-    unit₁ : ⟪ H , let⋆[ t ] u , E ,                S ⟫
-            ⇒[ ι ]
-            ⟪ H , t           , E , let⋆[-]ₑ u E ∙ S ⟫
-    unit₂ : ⟪ H , star        , E , let⋆[-]ₑ u E ∙ S ⟫
-            ⇒[ ι ]
-            ⟪ H , u           , E ,                S ⟫
 
-    box₁ : ⟪ H  , let![ t ] u , E      ,                 S ⟫
+    unit₁ : ⟪ H , let⋆[ t ] u , E  ,                S ⟫
+            ⇒[ ι ]
+            ⟪ H , t           , E  , let⋆[-]ₑ u E ∙ S ⟫
+    unit₂ : ⟪ H , star        , E′ , let⋆[-]ₑ u E ∙ S ⟫
+            ⇒[ ι ]
+            ⟪ H , u           , E  ,                S ⟫
+
+    box₁ : ⟪ H  , let![ t ] u , E         ,                S ⟫
            ⇒[ ι ]
-           ⟪ H  , t           , E      , let![-]ₑ u E  ∙ S ⟫
+           ⟪ H  , t           , E         , let![-]ₑ u E ∙ S ⟫
     box₂ : (v : Γ ⊢ᵥ A)
          → let H′ = H ∙[ ω ]ₕ value v E′ in
-           ⟪ H  , ! ⦅ v ⦆ᵛ    , E      , let![-]ₑ u E′ ∙ S ⟫
+           ⟪ H  , ! ⦅ v ⦆ᵛ    , E′        , let![-]ₑ u E ∙ S ⟫
            ⇒[ ι ]
-           ⟪ H′ , u           , liftRen E ,            ren1ˢ _ S ⟫
+           ⟪ H′ , u           , liftRen E ,        ren1ˢ _ S ⟫
 
-    prod₁ : ⟪ H  , let⊗[ t ] u , E              ,                 S ⟫
+    prod₁ : ⟪ H  , let⊗[ t ] u , E                    ,                    S ⟫
             ⇒[ ι ]
-            ⟪ H  , t           , E              , let⊗[-]ₑ u E  ∙ S ⟫
+            ⟪ H  , t           , E                    ,    let⊗[-]ₑ u E  ∙ S ⟫
     prod₂ : {t₁ : Δ ⊢ A} {t₂ : Δ ⊢ A′}
           → (v₁ : Value t₁) → (v₂ : Value t₂)
           → let H′ = H ∙[ ∣ S ∣ ]ₕ value (t₁ , v₁) E
                        ∙[ ∣ S ∣ ]ₕ value (t₂ , v₂) (stepRen E) in
-            ⟪ H  , ⟨ t₁ , t₂ ⟩ , E              , let⊗[-]ₑ u E′ ∙ S ⟫
+            ⟪ H  , ⟨ t₁ , t₂ ⟩ , E                    ,    let⊗[-]ₑ u E′ ∙ S ⟫
             ⇒[ ι ]
-            ⟪ H′ , u           , liftRen (liftRen E′) ,            ren2ˢ S ⟫
+            ⟪ H′ , u           , liftRen (liftRen E′) , ren1ˢ A′ (ren1ˢ A S) ⟫
 
-    linearly₁ : {k : Γ ∙ var Lin ⊢ ! A}
-              → ⟪ H            , linearly k ,      E ,                       S ⟫
+    linearly₁ : {k : Γ ∙ Lin ⊢ ! A}
+              → ⟪ H             , linearly k , E         ,                        S ⟫
                 ⇒[ ι ]
                 ⟪ H ∙[ 𝟙 ]ₕ lin , k          , liftRen E , linearlyₑ vz ∙ ren1ˢ _ S ⟫
-
-    -- TODO: This currently doesn't handle weakening of Lin
-    --
-    -- linearly λ l → let x = 1 in let ⋆ = free (new l s) in x
-    -- ε ∙ Lin ⊢ 1 , ε ∙ Lin ∙ array _ ⊩ ε ∙ Lin
-    --
-    -- let x = 1 in linearly λ l → let ⋆ = free (new l s) in x
-    -- ε       ⊢ 1 , ε ∙ Lin ∙ array _ ⊩ ε
 
     linearly₂ᵤ : (k : Δ ⊢ᵥ ! A)
                → H ⊢ x ↦ lin
@@ -182,156 +182,139 @@ mutual
                  ⇒ᵤ
                  ⟪ H , ⦅ k ⦆ᵛ , E ,               S ⟫
 
-    linearly₂ : ⦃ Graded ι ⦄
-              → (k : Δ ⊢ᵥ ! A)
-              → H ⊢ x ↦[ 𝟘 ] lin
-              → ⟪ H , ⦅ k ⦆ᵛ , E , linearlyₑ x ∙ S ⟫
+    linearly₂  : ⦃ Graded ι ⦄
+               → (k : Δ ⊢ᵥ ! A)
+               → H ⊢ x ↦[ 𝟘 ] lin
+               → ⟪ H , ⦅ k ⦆ᵛ , E , linearlyₑ x ∙ S ⟫
+                 ⇒[ ι ]
+                 ⟪ H , ⦅ k ⦆ᵛ , E ,               S ⟫
+
+    consume₁  : ⟪ H  , consume t , E ,            S ⟫
                 ⇒[ ι ]
-                ⟪ H , ⦅ k ⦆ᵛ , E ,               S ⟫
+                ⟪ H  , t         , E , consumeₑ ∙ S ⟫
 
-    -- Should we really not reduce l in consume, duplicate and new?
-    --
-    -- Consider the following:
-    --
-    --   linearly λ l →
-    --     let (l1, l2) = duplicate l
-    --         arr = new l1 size
-    --         ⋆ = consume (let ⋆ = free arr in l2)
-    --      in ! ⋆
-    --
-    -- Here, we free the array inside the argument of consume.
-    -- Freeing an array is a runtime operation since we have to remove the array from the heap.
-    -- So, it doesn't seem right to throw away the argument of consume, as we will not free the array.
-    -- Maybe this would work fine if we had a garbage collector instead?
-    -- !!! But how can we then define the _~ʰ′_ relation?
-    --
-    -- Also, what if we had freeze?
-    --
-    --   linearly λ l →
-    --     let (l1, l2) = duplicate l
-    --         arr = new l1 size
-    --         ⋆ = consume (let ! arr' = freeze arr in l2)
-    --      in ! ⋆
-    -- consume : {l : Γ ⊢ Lin}
-    --         → ⟪ H  , consume l , E , S ⟫
-    --           ⇒[ ι ]
-    --           ⟪ H  , star      , E , S ⟫
+    consume₂ᵤ : H ⊢ renVar E x ↦ lin
+              → ⟪ H  , ` x       , E , consumeₑ ∙ S ⟫
+                ⇒ᵤ
+                ⟪ H , star       , E ,            S ⟫
 
-    -- consume₁ : {l : Γ ⊢ Lin}
-    --          → ⟪ H  , consume l , E ,            S ⟫
-    --            ⇒[ ι ]
-    --            ⟪ H  , l         , E , consumeₑ ∙ S ⟫
-    -- consume₂ : {x : Γ ∋ᶜ var Lin}
-    --          → H ⊢ x ↦[ 𝟙 ] lin ⨾ H′
-    --          → ⟪ H  , ` x       , E , consumeₑ ∙ S ⟫
-    --            ⇒[ ι ]
-    --            ⟪ H′ , star      , E ,            S ⟫
+    consume₂  : ⦃ Graded ι ⦄
+              → ∣ S ∣ PE.≡ 𝟙
+              → H ⊢ renVar E x ↦[ 𝟙 - 𝟙 ] lin ⨾ H′
+              → ⟪ H  , ` x       , E , consumeₑ ∙ S ⟫
+                ⇒[ ι ]
+                ⟪ H′ , star      , E ,            S ⟫
 
-    -- duplicate : {l : Γ ⊢ Lin}
-    --           → ⟪ H , duplicate l , E , S ⟫
-    --             ⇒[ ι ]
-    --             ⟪ H , ⟨ l , l ⟩   , E , S ⟫
+    duplicate₁  : ⟪ H                          , duplicate t        , E                   ,                   S ⟫
+                  ⇒[ ι ]
+                  ⟪ H                          , t                  , E                   ,      duplicateₑ ∙ S ⟫
 
-    -- duplicate₁ : {l : Γ ⊢ Lin}
-    --            → ⟪ H            , duplicate l            , E      ,              S ⟫
-    --              ⇒[ ι ]
-    --              ⟪ H            , l                      , E      , duplicateₑ ∙ S ⟫
-    -- duplicate₂ : {x : Γ ∋ᶜ var Lin}
-    --            → ⟪ H            , ` x                    , E      , duplicateₑ ∙ S ⟫
-    --              ⇒[ ι ]
-    --              ⟪ H ∙[ 𝟙 ] lin , ⟨ ren1 (` x) , ` here ⟩ , lift E ,         ren1ˢ S ⟫
+    duplicate₂ᵤ : H ⊢ renVar E x ↦ lin
+                → ⟪ H                          , ` x                , E                   ,      duplicateₑ ∙ S ⟫
+                  ⇒ᵤ
+                  ⟪ H  ∙[ 𝟙 ]ₕ lin ∙[ 𝟙 ]ₕ lin , ⟨ ` vs vz , ` vz ⟩ , liftRen (liftRen E) , ren1ˢ _ (ren1ˢ _ S) ⟫
 
+    duplicate₂  : ⦃ Graded ι ⦄
+                → ∣ S ∣ PE.≡ 𝟙
+                → H ⊢ renVar E x ↦[ 𝟙 - 𝟙 ] lin ⨾ H′
+                → ⟪ H                          , ` x                , E                   ,      duplicateₑ ∙ S ⟫
+                  ⇒[ ι ]
+                  ⟪ H′ ∙[ 𝟙 ]ₕ lin ∙[ 𝟙 ]ₕ lin , ⟨ ` vs vz , ` vz ⟩ , liftRen (liftRen E) , ren1ˢ _ (ren1ˢ _ S) ⟫
 
     new₁  : {l : Δ ⊢ Lin} {s : Δ ⊢ ℕ}
-          → ⟪ H  , new l s ,     E  ,             S ⟫
+          → ⟪ H                    , new l s , E         ,             S ⟫
              ⇒[ ι ]
-            ⟪ H  , s       ,     E  , new₁ₑ l E ∙ S ⟫
+            ⟪ H                    , s       , E         , new₁ₑ l E ∙ S ⟫
     new₂  : {l : Δ ⊢ Lin}
           → (s : Nat)
-          → ⟪ H  , Nat→⊢ s ,     E′ , new₁ₑ l E ∙ S ⟫
+          → t PE.≡ Nat→⊢ s
+          → ⟪ H                    , t       , E′        , new₁ₑ l E ∙ S ⟫
              ⇒[ ι ]
-            ⟪ H  , l       ,     E  , new₂ₑ s   ∙ S ⟫
+            ⟪ H                    , l       , E         , new₂ₑ s   ∙ S ⟫
 
     new₃ᵤ : (s : Nat)
           → H ⊢ renVar E x ↦ lin
           → let H′ = H ∙[ 𝟙 ]ₕ array (replicate s 0) in
-            ⟪ H  , ` x    ,      E  , new₂ₑ s   ∙ S ⟫
+            ⟪ H                    , ` x     , E         , new₂ₑ s   ∙ S ⟫
              ⇒ᵤ
-            ⟪ H′ , ` vz , liftRen E  ,      ren1ˢ _ S ⟫
+            ⟪ H′                   , ` vz    , liftRen E ,     ren1ˢ _ S ⟫
 
     new₃  : ⦃ Graded ι ⦄
           → (s : Nat)
           → ∣ S ∣ PE.≡ 𝟙
           → H ⊢ renVar E x ↦[ 𝟙 - 𝟙 ] lin ⨾ H′
-          → let H″ = H′ ∙[ 𝟙 ]ₕ array (replicate s 0) in
-            ⟪ H  , ` x    ,      E , new₂ₑ s   ∙ S ⟫
+          → let arr = replicate s 0 in
+            ⟪ H                    , ` x     , E         , new₂ₑ s   ∙ S ⟫
              ⇒[ ι ]
-            ⟪ H″ , ` vz , liftRen E ,      ren1ˢ _ S ⟫
+            ⟪ H′ ∙[ 𝟙 ]ₕ array arr , ` vz    , liftRen E ,     ren1ˢ _ S ⟫
 
-    -- new₁ : {l : Γ ⊢ Lin} {s : Γ ⊢ ℕ}
-    --      → ⟪ H  , new l s     , E      ,           S ⟫
-    --         ⇒[ ι ]
-    --        ⟪ H  , l           , E      , new₁ₑ s ∙ S ⟫
-    -- new₂ : {x : Γ ∋ᶜ var Lin} {s : Γ ⊢ ℕ}
-    --      → H ⊢ x ↦[ 𝟙 ] lin ⨾ H′
-    --      → ⟪ H  , ` x         , E      , new₁ₑ s ∙ S ⟫
-    --         ⇒[ ι ]
-    --        ⟪ H′ , s           , E      , new₂ₑ   ∙ S ⟫
-    -- new₃ : {s : Nat}
-    --      → let H′ = H ∙[ 𝟙 ] array (replicate s 0) in
-    --        ⟪ H  , ⦅ num s ⦆ᵛ  , E      , new₂ₑ   ∙ S ⟫
-    --         ⇒[ ι ]
-    --        ⟪ H′ , ` here      , lift E ,      ren1ˢ S ⟫
-
-    read₁ : {arr : Δ ⊢ Arr} {i : Δ ⊢ ℕ}
-          → ⟪ H , read arr i                        , E  ,                    S ⟫
-            ⇒[ ι ]
-            ⟪ H , i                                 , E  , read₁ₑ arr   E   ∙ S ⟫
-    read₂ : {arr : Δ ⊢ Arr} (i : Nat)
-          → ⟪ H , Nat→⊢ i                           , E′ , read₁ₑ arr   E   ∙ S ⟫
-            ⇒[ ι ]
-            ⟪ H , arr                               , E  , read₂ₑ     i     ∙ S ⟫
-    read₃ : {x : Δ ∋ᶜ ref} (i : Fin n) (xs : Vec Nat n)
-          → H ⊢ renVar E x ↦ array xs
-          → ⟪ H , ` x                               , E  , read₂ₑ (toNat i) ∙ S ⟫
-            ⇒[ ι ]
-            ⟪ H , ⟨ ` x , ! fromNat (lookup xs i) ⟩ , E  ,                    S ⟫
-
-    write₁ : {arr : Δ ⊢ Arr} {i : Δ ⊢ ℕ} {v : Δ ⊢ ℕ}
-           → ⟪ H  , write arr i v ,      E  ,                             S ⟫
+    read₁  : {arr : Δ ⊢ Arr} {i : Δ ⊢ ℕ}
+           → ⟪ H , read arr i                      , E            ,                   S ⟫
              ⇒[ ι ]
-             ⟪ H  , v             ,      E  , write₁ₑ arr        i    E ∙ S ⟫
-    write₂ : {arr : Δ ⊢ Arr} {i : Δ ⊢ ℕ} (v : Nat)
-           → ⟪ H  , Nat→⊢ v       ,      E′ , write₁ₑ arr        i    E ∙ S ⟫
-             ⇒[ ι ]
-             ⟪ H  , i             ,      E  , write₂ₑ arr           v E ∙ S ⟫
-    write₃ : {arr : Δ ⊢ Arr} (i : Nat) (v : Nat)
-           → ⟪ H  , Nat→⊢ i       ,      E′ , write₂ₑ arr           v E ∙ S ⟫
-             ⇒[ ι ]
-             ⟪ H  , arr           ,      E  , write₃ₑ            i  v   ∙ S ⟫
+             ⟪ H , i                               , E            , read₁ₑ arr   E  ∙ S ⟫
 
-    write₄ᵤ : {x : Δ ∋ᶜ ref} (i : Fin n) (v : Nat) (xs : Vec Nat n)
+    read₂  : {arr : Δ ⊢ Arr} (i : Nat)
+           → t PE.≡ Nat→⊢ i
+           → ⟪ H , t                               , E′          , read₁ₑ arr   E   ∙ S ⟫
+             ⇒[ ι ]
+             ⟪ H , arr                             , E           , read₂ₑ     i     ∙ S ⟫
+
+    read₃ᵤ : (i : Fin n) (xs : Vec Nat n)
+           → H ⊢ renVar E x ↦ array xs
+           → let v = fromNat (lookup xs i) in
+             ⟪ H , ` x           , E , read₂ₑ (toNat i) ∙ S ⟫
+             ⇒ᵤ
+             ⟪ H , ⟨ ` x , ! v ⟩ , E ,                    S ⟫
+
+    read₃  : ⦃ Graded ι ⦄
+           → (i : Fin n) (xs : Vec Nat n)
+           → ∣ S ∣ PE.≡ 𝟙
+           → H ⊢ renVar E x ↦[ 𝟙 ] array xs
+           → let v = fromNat (lookup xs i) in
+             ⟪ H , ` x           , E , read₂ₑ (toNat i) ∙ S ⟫
+             ⇒[ ι ]
+             ⟪ H , ⟨ ` x , ! v ⟩ , E ,                    S ⟫
+           -- Should we duplicate the array for copying semantics?
+           -- i.e., ⟪ H ∙[ 𝟙 ]ₕ arr , ⟨ ` vz , ! v ⟩ , liftRen E , ren1ˢ _ S ⟫
+
+    write₁  : {arr : Δ ⊢ Arr} {i : Δ ⊢ ℕ} {v : Δ ⊢ ℕ}
+            → ⟪ H  , write arr i v , E        ,                            S ⟫
+              ⇒[ ι ]
+              ⟪ H  , v             , E        , write₁ₑ arr       i    E ∙ S ⟫
+
+    write₂  : {arr : Δ ⊢ Arr} {i : Δ ⊢ ℕ} (v : Nat)
+            → t PE.≡ Nat→⊢ v
+            → ⟪ H  , t             , E′       , write₁ₑ arr       i    E ∙ S ⟫
+              ⇒[ ι ]
+              ⟪ H  , i             , E        , write₂ₑ arr          v E ∙ S ⟫
+
+    write₃  : {arr : Δ ⊢ Arr} (i : Nat) (v : Nat)
+            → t PE.≡ Nat→⊢ i
+            → ⟪ H  , t            , E′        , write₂ₑ arr         v E ∙ S ⟫
+              ⇒[ ι ]
+              ⟪ H  , arr          , E         , write₃ₑ          i  v   ∙ S ⟫
+
+    write₄ᵤ : {x : Δ ∋ᶜ Arr} (i : Fin n) (v : Nat) (xs : Vec Nat n)
             → H ⊢ renVar E x ↦ array xs
             → let H′ = H ∙[ 𝟙 ]ₕ array (xs [ i ]≔ v) in
-              ⟪ H  , ` x          ,         E , write₃ₑ     (toNat i) v   ∙ S ⟫
+              ⟪ H  , ` x          , E         , write₃ₑ   (toNat i) v   ∙ S ⟫
               ⇒ᵤ
-              ⟪ H′ , ` vz         , liftRen E ,                      ren1ˢ _ S ⟫
+              ⟪ H′ , ` vz         , liftRen E ,                   ren1ˢ _ S ⟫
 
-    write₄ₚ : {x : Δ ∋ᶜ ref} (i : Fin n) (v : Nat) (xs : Vec Nat n)
-            -- TODO: does 𝟙 - ∣ S ∣ make sense?
+    write₄ₚ : {x : Δ ∋ᶜ Arr} (i : Fin n) (v : Nat) (xs : Vec Nat n)
             → ∣ S ∣ PE.≡ 𝟙
             → H ⊢ renVar E x ↦[ 𝟙 - 𝟙 ] array xs ⨾ H′
             → let H″ = H′ ∙[ 𝟙 ]ₕ array (xs [ i ]≔ v) in
-              ⟪ H  , ` x          ,         E , write₃ₑ     (toNat i) v   ∙ S ⟫
+              ⟪ H  , ` x          ,         E , write₃ₑ   (toNat i) v   ∙ S ⟫
               ⇒ₚ
-              ⟪ H″ , ` vz         , liftRen E ,                      ren1ˢ _ S ⟫
+              ⟪ H″ , ` vz         , liftRen E ,                   ren1ˢ _ S ⟫
 
-    write₄ₘ : {x : Δ ∋ᶜ ref} (i : Fin n) (v : Nat) (xs : Vec Nat n)
+    write₄ₘ : {x : Δ ∋ᶜ Arr} (i : Fin n) (v : Nat) (xs : Vec Nat n)
             → H ⊢ renVar E x ↦[ 𝟙 ] array xs
             → H ⊢ renVar E x ≔ (xs [ i ]≔ v) ⨾ H′
-            → ⟪ H  , ` x          ,         E , write₃ₑ     (toNat i) v   ∙ S ⟫
+            → ⟪ H  , ` x          , E         , write₃ₑ   (toNat i) v   ∙ S ⟫
               ⇒ₘ
-              ⟪ H′ , ` x          ,         E ,                             S ⟫
+              ⟪ H′ , ` x          , E         ,                           S ⟫
 
 -- Reflexive, transistive closure of the reduction relation
 
@@ -345,18 +328,6 @@ _⇒ᵤ*_ _⇒ₚ*_ _⇒ₘ*_ : State Γ Δ A B → State Γ′ Δ′ A′ B →
 _⇒ᵤ*_ = _⇒[ ungraded ]*_
 _⇒ₚ*_ = _⇒[ pure ]*_
 _⇒ₘ*_ = _⇒[ mutable ]*_
-
-
--- _⇨*_ : ∀ {m n m′ n′ m″ n″} {s : State m n} {s′ : State m′ n′} {s″ : State m″ n″}
---      → s ⇒* s′ → s′ ⇒* s″ → s ⇒* s″
--- id ⇨* d′ = d′
--- (x ⇨ d) ⇨* d′ = x ⇨ (d ⇨* d′)
-
-
--- data Heap-preserving : {s : State m n} {s′ : State m′ n′} (d : s ⇒* s′) → Set ℓ where
---   id : ∀ {s : State m n} → Heap-preserving (id {s = s})
---   _⇨_ : ∀ {s : State m n} {d : ⟪ H , t′ , E′ , S′ ⟫ ⇒* s} (x : ⟪ H , t , E , S ⟫ ⇒ ⟪ H , t′ , E′ , S′ ⟫)
---       → Heap-preserving d → Heap-preserving (x ⇨ d)
 
 -- let x = ? in linearly λ l → let ... in x
 
@@ -415,15 +386,43 @@ _⇒ₘ*_ = _⇒[ mutable ]*_
 
 -- H = {x↦4}
 -- λ star → x
--- E₁ : ε ∙ 𝓐
---    ⊩ ε ∙ 𝓐
+-- E₁ : ε ∙ A
+--    ⊩ ε ∙ A
 
 -- H = {x↦4, y↦1}
 -- λ star → y
--- E₂ : ε ∙ 𝓐 ∙ 𝓑
---    ⊩ ε     ∙ 𝓑
+-- E₂ : ε ∙ A ∙ B
+--    ⊩ ε     ∙ B
 
 -- H = {x↦4, y↦1}
 -- ⟨ λ star → x , star → y ⟩
--- E  : ε ∙ 𝓐 ∙ 𝓑
---    ⊩ ε ∙ 𝓐 ∙ 𝓑
+-- E  : ε ∙ A ∙ B
+--    ⊩ ε ∙ A ∙ B
+
+-- Should we really not reduce l in consume, duplicate and new?
+--
+-- Consider the following:
+--
+--   linearly λ l →
+--     let (l1, l2) = duplicate l
+--         arr = new l1 size
+--         ⋆ = consume (let ⋆ = free arr in l2)
+--      in ! ⋆
+--
+-- Here, we free the array inside the argument of consume.
+-- Freeing an array is a runtime operation since we have to remove the array from the heap.
+-- So, it doesn't seem right to throw away the argument of consume, as we will not free the array.
+-- Maybe this would work fine if we had a garbage collector instead?
+-- !!! But how can we then define the _~ʰ′_ relation?
+--
+-- Also, what if we had freeze?
+--
+--   linearly λ l →
+--     let (l1, l2) = duplicate l
+--         arr = new l1 size
+--         ⋆ = consume (let ! arr' = freeze arr in l2)
+--      in ! ⋆
+-- consume : {l : Γ ⊢ Lin}
+--         → ⟪ H  , consume l , E , S ⟫
+--           ⇒[ ι ]
+--           ⟪ H  , star      , E , S ⟫

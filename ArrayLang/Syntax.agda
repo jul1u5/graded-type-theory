@@ -58,39 +58,36 @@ private
   variable
     n m k : Nat
 
-data ConItem : Type → Set ℓ where
-  var : (A : Type) → ConItem A
-  ref : ConItem Arr
+-- data ConItem : Type → Set ℓ where
+--   var : (A : Type) → ConItem A
+--   ref : ConItem Arr
 
 data Con : Nat → Set ℓ where
   ε   : Con 0
-  _∙_ : (Γ : Con n)
-      → {A : Type} → ConItem A
+  _∙_ : (Γ : Con n) (A : Type)
       → Con (1+ n)
 
 private
   variable
     A B C A′ : Type
-    𝓐 𝓑 𝓒 : ConItem _
     Γ Δ Θ : Con n
     p q r : M
 
-data _∋ᶜ_ : Con n → ConItem A → Set ℓ where
-  vz   : Γ ∙ 𝓐 ∋ᶜ 𝓐
-  vs_  : Γ ∋ᶜ 𝓐
-       → Γ ∙ 𝓑 ∋ᶜ 𝓐
+data _∋ᶜ_ : Con n → Type → Set ℓ where
+  vz   : Γ ∙ A ∋ᶜ A
+  vs_  : Γ ∋ᶜ A
+       → Γ ∙ B ∋ᶜ A
 
-toFin : {Γ : Con n} → Γ ∋ᶜ 𝓐 → Fin n
+toFin : {Γ : Con n} → Γ ∋ᶜ A → Fin n
 toFin vz = x0
 toFin (vs x) = toFin x +1
 
 data _⊢_ {n} : Con n → Type → Set ℓ where
-  `_ : {𝓐 : ConItem A}
-     → Γ ∋ᶜ 𝓐
+  `_ : Γ ∋ᶜ A
      → Γ ⊢ A
 
   lam : (p : M)
-      → Γ ∙ var A ⊢ B
+      → Γ ∙ A ⊢ B
       → Γ ⊢ A [ p ]⇒ B
   _∘_ : Γ ⊢ A [ p ]⇒ B
       → Γ ⊢ A
@@ -107,17 +104,17 @@ data _⊢_ {n} : Con n → Type → Set ℓ where
   !_ : Γ ⊢   A
      → Γ ⊢ ! A
   let![_]_ : Γ ⊢ ! A
-           → Γ ∙ var A ⊢ B
+           → Γ ∙ A ⊢ B
            → Γ ⊢ B
 
   ⟨_,_⟩ : Γ ⊢ A
         → Γ ⊢     B
         → Γ ⊢ A ⊗ B
   let⊗[_]_ : Γ ⊢ A ⊗ B
-           → Γ ∙ var A ∙ var B ⊢ C
+           → Γ ∙ A ∙ B ⊢ C
            → Γ ⊢ C
 
-  linearly  : Γ ∙ var Lin ⊢ ! A
+  linearly  : Γ ∙ Lin ⊢ ! A
             → Γ ⊢ ! A
   consume   : Γ ⊢ Lin
             → Γ ⊢ Unit
@@ -148,7 +145,7 @@ pattern _∘⟨_⟩_ t p u = _∘_ {p = p} t u
 
 let-[_]_ : {p : M}
          → (t : Γ ⊢ A)
-         → (u : Γ ∙ var A ⊢ B)
+         → (u : Γ ∙ A ⊢ B)
          → Γ ⊢ B
 let-[_]_ {p = p} t u = (lam p u) ∘ t
 
@@ -159,50 +156,49 @@ private
 vz≢vs : vz ≢ vs x
 vz≢vs ()
 
-vs-inj : {x : Γ ∋ᶜ 𝓐} {y : Γ ∋ᶜ 𝓐}
-       → vs_ {𝓑 = 𝓑} x ≡ vs y
+vs-inj : {x : Γ ∋ᶜ A} {y : Γ ∋ᶜ A}
+       → vs_ {B = B} x ≡ vs y
        → x ≡ y
 vs-inj refl = refl
 
 dec-var : {A B : Type}
-        → {𝓐 : ConItem A} {𝓑 : ConItem B}
-        → (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
-        → Dec (Σ (A ≡ B) λ { refl → Σ (𝓐 ≡ 𝓑) λ { refl → x ≡ y } })
-dec-var vz     vz     = yes (refl , refl , refl)
-dec-var vz     (vs y) = no λ where (refl , refl , vz≡vs) → vz≢vs vz≡vs
-dec-var (vs x) vz     = no λ where (refl , refl , vs≡vz) → vz≢vs (sym vs≡vz)
+        → (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B)
+        → Dec (Σ (A ≡ B) λ A≡B → subst (Γ ∋ᶜ_) A≡B x ≡ y)
+dec-var vz     vz     = yes (refl , refl)
+dec-var vz     (vs y) = no λ where (refl , vz≡vs) → vz≢vs vz≡vs
+dec-var (vs x) vz     = no λ where (refl , vs≡vz) → vz≢vs (sym vs≡vz)
 dec-var (vs x) (vs y) = case dec-var x y of λ where
-  (yes (refl , refl , refl)) → yes (refl , refl , refl)
-  (no x≢y) → no λ where (refl , refl , refl) → x≢y (refl , refl , refl)
+  (yes (refl , refl)) → yes (refl , refl)
+  (no x≢y) → no λ where (refl , refl) → x≢y (refl , refl)
 
 -- Renamings
 
-Distinct : Γ ∋ᶜ 𝓐 → Γ ∋ᶜ 𝓑 → Set
+Distinct : Γ ∋ᶜ A → Γ ∋ᶜ B → Set
 Distinct vz     vz     = ⊥
 Distinct vz     (vs _) = ⊤
 Distinct (vs _) vz     = ⊤
 Distinct (vs x) (vs y) = Distinct x y
 
-Equal : Γ ∋ᶜ 𝓐 → Γ ∋ᶜ 𝓑 → Set
+Equal : Γ ∋ᶜ A → Γ ∋ᶜ B → Set
 Equal vz     vz     = ⊤
 Equal vz     (vs _) = ⊥
 Equal (vs _) vz     = ⊥
 Equal (vs x) (vs y) = Equal x y
 
-dec-var′ : (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
+dec-var′ : (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B)
          → Equal x y ⊎ Distinct x y
 dec-var′ vz     vz     = inj₁ tt
 dec-var′ vz     (vs y) = inj₂ tt
 dec-var′ (vs x) vz     = inj₂ tt
 dec-var′ (vs x) (vs y) = dec-var′ x y
 
-dec-Distinct : (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑) → Dec (Distinct x y)
+dec-Distinct : (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B) → Dec (Distinct x y)
 dec-Distinct vz vz = no idᶠ
 dec-Distinct vz (vs y) = yes tt
 dec-Distinct (vs x) vz = yes tt
 dec-Distinct (vs x) (vs y) = dec-Distinct x y
 
-Distinct-prop : (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
+Distinct-prop : (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B)
               → (d₁ d₂ : Distinct x y)
               → d₁ ≡ d₂
 Distinct-prop vz     (vs _) _  _  = refl
@@ -213,55 +209,55 @@ mutual
   data Ren : Con n → Con m → Set ℓ where
     ε   : Ren Γ ε
     _∙_ : (ρ : Ren Γ Δ)
-          (x : Γ ∋ᶜ 𝓐)
+          (x : Γ ∋ᶜ A)
         → ⦃ x∉ρ : x ∉ʳ ρ ⦄
-        → Ren Γ (Δ ∙ 𝓐)
+        → Ren Γ (Δ ∙ A)
 
   pattern _∙[_]_ ρ x∉ρ x = _∙_ ρ x ⦃ x∉ρ ⦄
 
-  _∉ʳ_ : Γ ∋ᶜ 𝓐 → Ren Γ Δ → Set
+  _∉ʳ_ : Γ ∋ᶜ A → Ren Γ Δ → Set
   x ∉ʳ ε       = ⊤
   x ∉ʳ (ρ ∙ y) = Distinct x y × x ∉ʳ ρ
 
 instance
-  ∉-nil : {x : Γ ∋ᶜ 𝓐} → x ∉ʳ ε
+  ∉-nil : {x : Γ ∋ᶜ A} → x ∉ʳ ε
   ∉-nil = tt
 
-  ∉-cons : {x : Γ ∋ᶜ 𝓐} {y : Γ ∋ᶜ 𝓑} {ρ : Ren Γ Δ}
+  ∉-cons : {x : Γ ∋ᶜ A} {y : Γ ∋ᶜ B} {ρ : Ren Γ Δ}
          → ⦃ Distinct x y ⦄
          → ⦃ x∉ρ : x ∉ʳ ρ ⦄
          → ⦃ y∉ρ : y ∉ʳ ρ ⦄
          → x ∉ʳ ρ ∙[ y∉ρ ] y
   ∉-cons ⦃ (x≠y) ⦄ ⦃ x∉ρ ⦄ = x≠y , x∉ρ
 
-∉ʳ-prop : (ρ : Ren Γ Δ) {x : Γ ∋ᶜ 𝓐}
+∉ʳ-prop : (ρ : Ren Γ Δ) {x : Γ ∋ᶜ A}
           (p₁ p₂ : x ∉ʳ ρ)
         → p₁ ≡ p₂
 ∉ʳ-prop ε _ _ = refl
 ∉ʳ-prop (_ ∙ y) {x} (d₁ , p₁) (d₂ , p₂) = cong₂ _,_ (Distinct-prop x y d₁ d₂) (∉ʳ-prop _ _ _)
 
-renVar : {𝓐 : ConItem A} → Ren Γ Δ → Δ ∋ᶜ 𝓐 → Γ ∋ᶜ 𝓐
+renVar : Ren Γ Δ → Δ ∋ᶜ A → Γ ∋ᶜ A
 renVar (_ ∙ y) vz     = y
 renVar (ρ ∙ _) (vs x) = renVar ρ x
 
 mutual
   stepRen : Ren Γ Δ
-          → Ren (Γ ∙ 𝓐) Δ
+          → Ren (Γ ∙ A) Δ
   stepRen ε = ε
   stepRen (ρ ∙[ x∉ρ ] x) = stepRen ρ ∙[ step∉ x∉ρ ] vs x
 
-  step∉ : {x : Γ ∋ᶜ 𝓐} {ρ : Ren Γ Δ}
+  step∉ : {x : Γ ∋ᶜ A} {ρ : Ren Γ Δ}
         → x ∉ʳ ρ
-        → vs_ {𝓑 = 𝓑} x ∉ʳ stepRen ρ
+        → vs_ {B = B} x ∉ʳ stepRen ρ
   step∉ {ρ = ε} _ = tt
   step∉ {ρ = ρ ∙[ x∉ρ ] _} (d , y∉ρ) = d , step∉ y∉ρ
 
 vz∉step : (ρ : Ren Γ Δ)
-        → vz {𝓐 = 𝓐} ∉ʳ stepRen ρ
+        → vz {A = A} ∉ʳ stepRen ρ
 vz∉step ε = tt
 vz∉step (ρ ∙ _) = tt , vz∉step ρ
 
-liftRen : Ren Γ Δ → Ren (Γ ∙ 𝓐) (Δ ∙ 𝓐)
+liftRen : Ren Γ Δ → Ren (Γ ∙ A) (Δ ∙ A)
 liftRen ρ = stepRen ρ ∙[ vz∉step _ ] vz
 
 idRen : {Γ : Con n} → Ren Γ Γ
@@ -295,12 +291,11 @@ private
 
 -- Inversion lemmas for renaming
 
-ren-var : {𝓐 : ConItem A}
-          {x : Γ ∋ᶜ 𝓐}
+ren-var : {x : Γ ∋ᶜ A}
           {t : Δ ⊢ A}
           {ρ : Ren Γ Δ}
         → ren ρ t ≡ ` x
-        → ∃ λ (x′ : Δ ∋ᶜ 𝓐) → t ≡ ` x′ × renVar ρ x′ ≡ x
+        → ∃ λ (x′ : Δ ∋ᶜ A) → t ≡ ` x′ × renVar ρ x′ ≡ x
 ren-var {t = ` _} refl = _ , refl , refl
 
 ren-lam : ren ρ t ≡ lam p u
@@ -371,13 +366,13 @@ ren-free : ren ρ t ≡ free t₁
          → ∃ λ t₁′ → t ≡ free t₁′ × ren ρ t₁′ ≡ t₁
 ren-free {t = free _} refl = _ , refl , refl
 
-ren1 : (𝓐 : ConItem B) → Γ ⊢ A → Γ ∙ 𝓐 ⊢ A
+ren1 : (B : Type) → Γ ⊢ A → Γ ∙ B ⊢ A
 ren1 _ = ren (stepRen idRen)
 
-`-inj : {x : Γ ∋ᶜ 𝓐} {y : Γ ∋ᶜ 𝓑}
+`-inj : {x y : Γ ∋ᶜ A}
       → ` x ≡ ` y
-      → Σ (𝓐 ≡ 𝓑) λ 𝓐≡𝓑 → subst (Γ ∋ᶜ_) 𝓐≡𝓑 x ≡ y
-`-inj refl = _ , refl
+      → x ≡ y
+`-inj refl = refl
 
 ∘-inj : {t₁  : Γ ⊢ A  [ p ]⇒ B} {t₂  : Γ ⊢ A}
       → {t₁′ : Γ ⊢ A′ [ p ]⇒ B} {t₂′ : Γ ⊢ A′}
@@ -388,55 +383,53 @@ ren1 _ = ren (stepRen idRen)
 ∘-inj refl = _ , refl , refl
 
 Distinct→≢ : {A B : Type}
-           → {𝓐 : ConItem A} {𝓑 : ConItem B}
-           → (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
+           → (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B)
            → Distinct x y
-           → ¬ Σ (A ≡ B) λ { refl → Σ (𝓐 ≡ 𝓑) λ { refl → x ≡ y } }
+           → ¬ Σ (A ≡ B) λ A≡B → subst (Γ ∋ᶜ_) A≡B x ≡ y
 Distinct→≢ vz     vz     ⊥ = ⊥-elim ⊥
 Distinct→≢ vz     (vs _) tt = λ where
-  (refl , refl , vz≡vs) → vz≢vs vz≡vs
+  (refl , vz≡vs) → vz≢vs vz≡vs
 Distinct→≢ (vs _) vz     tt = λ where
-  (refl , refl , vs≡vz) → vz≢vs (sym vs≡vz)
+  (refl , vs≡vz) → vz≢vs (sym vs≡vz)
 Distinct→≢ (vs x) (vs y) distinct = λ where
-  (refl , refl , vs-x≡vs-y) → Distinct→≢ x y distinct (refl , refl , vs-inj vs-x≡vs-y)
+  (refl , vs-x≡vs-y) → Distinct→≢ x y distinct (refl , vs-inj vs-x≡vs-y)
 
 ≢→Distinct : {A B : Type}
-           → {𝓐 : ConItem A} {𝓑 : ConItem B}
-           → (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
-           → ¬ (Σ (A ≡ B) λ { refl → Σ (𝓐 ≡ 𝓑) λ { refl → x ≡ y } })
+           → (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B)
+           → ¬ (Σ (A ≡ B) λ A≡B → subst (Γ ∋ᶜ_) A≡B x ≡ y)
            → Distinct x y
-≢→Distinct vz vz ≢ = ≢ (refl , refl , refl)
+≢→Distinct vz vz ≢ = ≢ (refl , refl)
 ≢→Distinct vz (vs _) _ = tt
 ≢→Distinct (vs _) vz _ = tt
 ≢→Distinct (vs x) (vs y) ≢ = ≢→Distinct x y λ where
-  (refl , refl , x≡y) → ≢ (refl , refl , cong vs_ x≡y)
+  (refl , x≡y) → ≢ (refl , cong vs_ x≡y)
 
-≢→Distinct′ : (x y : Γ ∋ᶜ 𝓐)
+≢→Distinct′ : (x y : Γ ∋ᶜ A)
             → x ≢ y
             → Distinct x y
-≢→Distinct′ x y ≢ = ≢→Distinct x y λ where (refl , refl , refl) → ≢ refl
+≢→Distinct′ x y ≢ = ≢→Distinct x y λ where (refl , refl) → ≢ refl
 
-Distinct→≢′ : (x y : Γ ∋ᶜ 𝓐)
+Distinct→≢′ : (x y : Γ ∋ᶜ A)
             → Distinct x y
             → x ≢ y
-Distinct→≢′ x y distinct x≡y = Distinct→≢ x y distinct (refl , refl , x≡y)
+Distinct→≢′ x y distinct x≡y = Distinct→≢ x y distinct (refl , x≡y)
 
-¬Distinct-refl : (x : Γ ∋ᶜ 𝓐) → ¬ (Distinct x x)
+¬Distinct-refl : (x : Γ ∋ᶜ A) → ¬ (Distinct x x)
 ¬Distinct-refl x distinct = Distinct→≢′ x x distinct refl
 
-Distinct-sym : (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑) → Distinct x y → Distinct y x
+Distinct-sym : (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B) → Distinct x y → Distinct y x
 Distinct-sym (vz)   (vs y) _ = tt
 Distinct-sym (vs x) (vz)   _ = tt
 Distinct-sym (vs x) (vs y) ≠ = Distinct-sym x y ≠
 
 Distinct-renVar
-  : (ρ : Ren Γ Δ) {x : Δ ∋ᶜ 𝓐} {y : Γ ∋ᶜ 𝓑}
+  : (ρ : Ren Γ Δ) {x : Δ ∋ᶜ A} {y : Γ ∋ᶜ B}
   → y ∉ʳ ρ
   → Distinct (renVar ρ x) y
 Distinct-renVar (ρ ∙ z) {x = vz}   {y} (d , _)   = Distinct-sym y z d
 Distinct-renVar (ρ ∙ _) {x = vs _}     (_ , y∉ρ) = Distinct-renVar ρ y∉ρ
 
-renVar≠ : (ρ : Ren Γ Δ) {x : Δ ∋ᶜ 𝓐} {y : Δ ∋ᶜ 𝓑}
+renVar≠ : (ρ : Ren Γ Δ) {x : Δ ∋ᶜ A} {y : Δ ∋ᶜ B}
         → Distinct x y
         → Distinct (renVar ρ x) (renVar ρ y)
 renVar≠ (ρ ∙[ x∉ρ ] z) {x = vs x} {y = vz}   _   = Distinct-renVar ρ x∉ρ
@@ -445,37 +438,37 @@ renVar≠ (ρ ∙        _) {x = vs x} {y = vs y} x≠y = renVar≠ ρ x≠y
 
 
 renVar∉ : (ρ : Ren Γ Δ)
-        → (x : Γ ∋ᶜ 𝓐)
+        → (x : Γ ∋ᶜ A)
         → x ∉ʳ ρ
-        → (y : Δ ∋ᶜ 𝓑)
+        → (y : Δ ∋ᶜ B)
         → Distinct x (renVar ρ y)
 renVar∉ (ρ ∙ z) x (x≢z , _)  vz     = x≢z
 renVar∉ (ρ ∙ _) x (_ , ρy∉ρ) (vs y) = renVar∉ ρ x ρy∉ρ y
 
-renVar-step : (ρ : Ren Γ Δ) (x : Δ ∋ᶜ 𝓐)
-            → renVar (stepRen {𝓐 = 𝓑} ρ) x ≡ vs (renVar ρ x)
+renVar-step : (ρ : Ren Γ Δ) (x : Δ ∋ᶜ A)
+            → renVar (stepRen {A = B} ρ) x ≡ vs (renVar ρ x)
 renVar-step (ρ ∙ _) vz     = refl
 renVar-step (ρ ∙ _) (vs x) = renVar-step ρ x
 
-renVar-id : {Γ : Con n} {x : Γ ∋ᶜ 𝓐} → renVar (idRen {Γ = Γ}) x ≡ x
+renVar-id : {Γ : Con n} {x : Γ ∋ᶜ A} → renVar (idRen {Γ = Γ}) x ≡ x
 renVar-id {Γ = Γ ∙ _} {x = vz}   = refl
 renVar-id {Γ = Γ ∙ _} {x = vs x} = trans (renVar-step idRen x) (cong vs_ renVar-id)
 
 renVar-unstep : (ρ : Ren Γ Δ)
-              → (x : Δ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓐)
-              → renVar (stepRen {𝓐 = 𝓑} ρ) x ≡ vs y
+              → (x : Δ ∋ᶜ A) (y : Γ ∋ᶜ A)
+              → renVar (stepRen {A = B} ρ) x ≡ vs y
               → renVar ρ x ≡ y
 renVar-unstep ρ x y renVar≡vs = vs-inj (begin
   vs (renVar ρ x)      ≡˘⟨ renVar-step ρ x ⟩
   renVar (stepRen ρ) x ≡⟨ renVar≡vs ⟩
   vs y ∎)
 
-renVar-lift-vs : (ρ : Ren Γ Δ) (x : Δ ∋ᶜ 𝓐)
-               → renVar (liftRen {𝓐 = 𝓑} ρ) (vs x) ≡ vs (renVar ρ x)
+renVar-lift-vs : (ρ : Ren Γ Δ) (x : Δ ∋ᶜ A)
+               → renVar (liftRen {A = B} ρ) (vs x) ≡ vs (renVar ρ x)
 renVar-lift-vs (ρ ∙ _) vz     = refl
 renVar-lift-vs (ρ ∙ _) (vs x) = renVar-step ρ x
 
-renVar-unlift-vz : (ρ : Ren Γ Δ) (x : Δ ∙ 𝓐 ∋ᶜ 𝓐)
+renVar-unlift-vz : (ρ : Ren Γ Δ) (x : Δ ∙ A ∋ᶜ A)
                  → renVar (liftRen ρ) x ≡ vz
                  → x ≡ vz
 renVar-unlift-vz _ vz     _         = refl
@@ -485,35 +478,34 @@ renVar-unlift-vz ρ (vs x) renVar≡vz = ⊥-elim (vz≢vs (begin
   vs renVar ρ x        ∎))
 
 renVar-unlift-vs : (ρ : Ren Γ Δ)
-                 → (x : Δ ∙ 𝓑 ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓐)
+                 → (x : Δ ∙ B ∋ᶜ A) (y : Γ ∋ᶜ A)
                  → renVar (liftRen ρ) x ≡ vs y
                  → ∃ λ x′ → x ≡ vs x′ × renVar ρ x′ ≡ y
 renVar-unlift-vs ρ (vs x) y [step-ρ]x≡vs-y = x , refl , renVar-unstep ρ x y [step-ρ]x≡vs-y
 
 mutual
-  remapRen : Δ ∋ᶜ 𝓐
+  remapRen : Δ ∋ᶜ A
            → Ren Γ Δ
-           → Ren (Γ ∙ 𝓐) Δ
+           → Ren (Γ ∙ A) Δ
   remapRen vz     (ρ ∙ _)        = liftRen ρ
   remapRen (vs x) (ρ ∙[ y∉ρ ] y) = remapRen x ρ ∙[ vs∉remap y∉ρ ] vs y
 
   vs∉remap : {ρ : Ren Γ Δ}
-           → {x : Γ ∋ᶜ 𝓐} (x∉ρ : x ∉ʳ ρ)
-           → {y : Δ ∋ᶜ 𝓑}
+           → {x : Γ ∋ᶜ A} (x∉ρ : x ∉ʳ ρ)
+           → {y : Δ ∋ᶜ B}
            → (vs x) ∉ʳ remapRen y ρ
   vs∉remap {ρ = _ ∙ _} (x≠y , x∉ρ) {y = vz}   = tt , (step∉ x∉ρ)
   vs∉remap {ρ = _ ∙ _} (x≠y , x∉ρ) {y = vs y} = x≠y , vs∉remap x∉ρ
 
 renVar-remap-vz : (ρ : Ren Γ Δ)
-                → (x : Δ ∋ᶜ 𝓐)
+                → (x : Δ ∋ᶜ A)
                 → renVar (remapRen x ρ) x ≡ vz
 renVar-remap-vz (ρ ∙ _) vz     = refl
 renVar-remap-vz (ρ ∙ _) (vs x) = renVar-remap-vz ρ x
 
 renVar-remap-vs : {A B : Type}
-                → {𝓐 : ConItem A} {𝓑 : ConItem B}
                 → (ρ : Ren Γ Δ)
-                → (x : Δ ∋ᶜ 𝓐) (y : Δ ∋ᶜ 𝓑) (z : Γ ∋ᶜ 𝓐)
+                → (x : Δ ∋ᶜ A) (y : Δ ∋ᶜ B) (z : Γ ∋ᶜ A)
                 → renVar ρ x ≡ z
                 → Distinct x y
                 → renVar (remapRen y ρ) x ≡ vs z
@@ -522,14 +514,14 @@ renVar-remap-vs (ρ ∙ _) (vs x) vz     _ refl _   = renVar-step ρ x
 renVar-remap-vs (ρ ∙ _) (vs x) (vs y) z ρx≡z x≢y = renVar-remap-vs ρ x y z ρx≡z x≢y
 
 renVar-unremap-vz : (ρ : Ren Γ Δ)
-                  → (x : Δ ∋ᶜ 𝓐) (y : Δ ∋ᶜ 𝓐)
+                  → (x : Δ ∋ᶜ A) (y : Δ ∋ᶜ A)
                   → renVar (remapRen y ρ) x ≡ vz
                   → x ≡ y
 renVar-unremap-vz (ρ ∙ _) x      vz     [lift-ρ]x≡vz    = renVar-unlift-vz ρ x [lift-ρ]x≡vz
 renVar-unremap-vz (ρ ∙ _) (vs x) (vs y) [remap-ρ-y]x≡vz = cong vs_ (renVar-unremap-vz ρ x y [remap-ρ-y]x≡vz)
 
 renVar-unremap-vs : (ρ : Ren Γ Δ)
-           → (x : Δ ∋ᶜ 𝓐) (y : Δ ∋ᶜ 𝓑) (z : Γ ∋ᶜ 𝓐)
+           → (x : Δ ∋ᶜ A) (y : Δ ∋ᶜ B) (z : Γ ∋ᶜ A)
            → renVar (remapRen y ρ) x ≡ vs z
            → renVar ρ x ≡ z
 renVar-unremap-vs (ρ ∙ _) x vz     z [lift-ρ]x≡vs-z =
@@ -538,7 +530,7 @@ renVar-unremap-vs (ρ ∙ _) vz (vs y) z vs-x≡vs-z = vs-inj vs-x≡vs-z
 renVar-unremap-vs (ρ ∙ _) (vs x) (vs y) z [remap-ρ-y]x≡vs-z = renVar-unremap-vs ρ x y z [remap-ρ-y]x≡vs-z
 
 renVar-unremap-≢ : (ρ : Ren Γ Δ)
-                 → (x : Δ ∋ᶜ 𝓐) (y : Δ ∋ᶜ 𝓑) (z : Γ ∙ 𝓑 ∋ᶜ 𝓐)
+                 → (x : Δ ∋ᶜ A) (y : Δ ∋ᶜ B) (z : Γ ∙ B ∋ᶜ A)
                  → renVar (remapRen y ρ) x ≡ z
                  → Distinct z (vs renVar ρ y)
 renVar-unremap-≢ (ρ ∙ w) x vz vz _ =  tt
@@ -550,7 +542,7 @@ renVar-unremap-≢ (ρ ∙[ w∉ρ ] w) vz (vs y) (vs z) vs-w≡vs-z =
 renVar-unremap-≢ (ρ ∙ _) (vs x) (vs y) z [remap-y-ρ]x≡z = renVar-unremap-≢ ρ x y z [remap-y-ρ]x≡z
 
 renVar-inj : (ρ : Ren Γ Δ)
-           → (x y : Δ ∋ᶜ 𝓐)
+           → (x y : Δ ∋ᶜ A)
            → renVar ρ x ≡ renVar ρ y
            → x ≡ y
 renVar-inj (ρ ∙ _)         vz     vz     _     = refl
@@ -566,19 +558,19 @@ mutual
   ρ • (σ ∙[ x∉σ ] x) = (ρ • σ) ∙[ renVar∉• x∉σ ] renVar ρ x
 
   renVar∉• : {ρ : Ren Γ Δ} {σ : Ren Δ Θ}
-           → {x : Δ ∋ᶜ 𝓐}
+           → {x : Δ ∋ᶜ A}
            → x ∉ʳ σ
            → renVar ρ x ∉ʳ (ρ • σ)
   renVar∉•         {σ = ε}     _           = tt
   renVar∉• {ρ = ρ} {σ = σ ∙ y} (x≠y , x∉σ) = renVar≠ ρ x≠y , renVar∉• x∉σ
 
-•-cong : {ρ₁ ρ₂ : Ren Γ Δ} {x₁ x₂ : Γ ∋ᶜ 𝓐} {x₁∉ρ₁ : x₁ ∉ʳ ρ₁} {x₂∉ρ₂ : x₂ ∉ʳ ρ₂}
+•-cong : {ρ₁ ρ₂ : Ren Γ Δ} {x₁ x₂ : Γ ∋ᶜ A} {x₁∉ρ₁ : x₁ ∉ʳ ρ₁} {x₂∉ρ₂ : x₂ ∉ʳ ρ₂}
        → (ρ₁≡ρ₂ : ρ₁ ≡ ρ₂)
        → (x₁≡x₂ : x₁ ≡ x₂)
        → ρ₁ ∙[ x₁∉ρ₁ ] x₁ ≡ ρ₂ ∙[ x₂∉ρ₂ ] x₂
 •-cong ρ₁≡ρ₂ x₁≡x₂ = •-cong′ ρ₁≡ρ₂ x₁≡x₂ (∉ʳ-prop _ _ _)
   where
-    •-cong′ : {ρ₁ ρ₂ : Ren Γ Δ} {x₁ x₂ : Γ ∋ᶜ 𝓐} {x₁∉ρ₁ : x₁ ∉ʳ ρ₁} {x₂∉ρ₂ : x₂ ∉ʳ ρ₂}
+    •-cong′ : {ρ₁ ρ₂ : Ren Γ Δ} {x₁ x₂ : Γ ∋ᶜ A} {x₁∉ρ₁ : x₁ ∉ʳ ρ₁} {x₂∉ρ₂ : x₂ ∉ʳ ρ₂}
             → (ρ₁≡ρ₂ : ρ₁ ≡ ρ₂)
             → (x₁≡x₂ : x₁ ≡ x₂)
             → subst₂ _∉ʳ_ x₁≡x₂ ρ₁≡ρ₂ x₁∉ρ₁ ≡ x₂∉ρ₂
@@ -603,7 +595,7 @@ mutual
 •-identityʳ (ρ ∙ x) = •-cong (trans (•-step ρ idRen) (•-identityʳ ρ)) refl
 
 ∙-inj : (ρ σ : Ren Γ Δ)
-      → (x y : Γ ∋ᶜ 𝓐)
+      → (x y : Γ ∋ᶜ A)
       → {x∉ρ : x ∉ʳ ρ} {y∉σ : y ∉ʳ σ}
       → ρ ∙[ x∉ρ ] x ≡ σ ∙[ y∉σ ] y
       → ρ ≡ σ × x ≡ y
@@ -624,18 +616,18 @@ mutual
   }
   }
 
-renVar-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ) (x : Θ ∋ᶜ 𝓐)
+renVar-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ) (x : Θ ∋ᶜ A)
             → renVar ρ (renVar σ x) ≡ renVar (ρ • σ) x
 renVar-comp _ (_ ∙ _) vz     = refl
 renVar-comp ρ (σ ∙ _) (vs x) = renVar-comp ρ σ x
 
 stepRen-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ)
-             → stepRen {𝓐 = 𝓐} ρ • σ ≡ stepRen (ρ • σ)
+             → stepRen {A = A} ρ • σ ≡ stepRen (ρ • σ)
 stepRen-comp ρ ε              = refl
 stepRen-comp ρ (σ ∙[ x∉σ ] x) = cong₂ (λ σ y → σ ∙[ {!!} ] y) (stepRen-comp ρ σ) (renVar-step ρ x)
 
 liftRen-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ)
-             → liftRen {𝓐 = 𝓐} ρ • liftRen σ ≡ liftRen (ρ • σ)
+             → liftRen {A = A} ρ • liftRen σ ≡ liftRen (ρ • σ)
 liftRen-comp ρ ε                           = refl
 liftRen-comp (ρ ∙[ x∉ρ ] x) (σ ∙[ y∉σ ] y) = cong₂ (λ η z → η ∙[ {!!} ] z ∙[ {!!} ] vz) {!!} {!renVar-step !}
 
@@ -689,14 +681,14 @@ module _ where
 
   unrelated-update : {Γ : Con n}
                    → (γ : Conₘ n)
-                   → (x : Γ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
+                   → (x : Γ ∋ᶜ A) (y : Γ ∋ᶜ B)
                    → Distinct x y
                    → (γ , toFin y ≔ p) ⟨ toFin x ⟩ ≡ γ ⟨ toFin x ⟩
   unrelated-update (_ ∙ _) vz     (vs _) _   = refl
   unrelated-update (_ ∙ _) (vs _) vz     _   = refl
   unrelated-update (γ ∙ _) (vs x) (vs y) x≠y = unrelated-update γ x y x≠y
 
-  ∉→Distinct-renVar : (x : Δ ∋ᶜ 𝓐) (y : Γ ∋ᶜ 𝓑)
+  ∉→Distinct-renVar : (x : Δ ∋ᶜ A) (y : Γ ∋ᶜ B)
                     → {ρ : Ren Γ Δ}
                     → y ∉ʳ ρ
                     → Distinct (renVar ρ x) y
@@ -704,7 +696,7 @@ module _ where
   ∉→Distinct-renVar (vs x) y {ρ ∙ _} (_ , y∉ρ) = ∉→Distinct-renVar x y y∉ρ
 
   -- Renaming of context lookups
-  ren-⟨⟩ : (x : Δ ∋ᶜ 𝓐) (ρ : Ren Γ Δ)
+  ren-⟨⟩ : (x : Δ ∋ᶜ A) (ρ : Ren Γ Δ)
          → renConₘ ρ γ ⟨ toFin (renVar ρ x) ⟩ ≡ γ ⟨ toFin x ⟩
   ren-⟨⟩ {γ = γ ∙ _} vz     (ρ ∙ y)        = update-lookup (renConₘ ρ γ) (toFin y)
   ren-⟨⟩ {γ = γ ∙ p} (vs x) (ρ ∙[ y∉ρ ] y) = begin

@@ -32,7 +32,6 @@ private
     n m : Nat
     Γ Γ′ Δ Δ′ Θ Θ′ : Con n
     A B C D : Type
-    𝓐 𝓑 𝓒 𝓓 : ConItem _
     t u t₁ t₂ : _ ⊢ _
     p p′ q r : M
     ρ : Ren Γ Δ
@@ -42,7 +41,7 @@ private
 
 infix 10 _⊢ᵥ_
 data Value {Γ : Con n} : {A : Type} → Γ ⊢ A → Set ℓ where
-  lam   : (p : M) → (t : Γ ∙ var A ⊢ B)
+  lam   : (p : M) → (t : Γ ∙ A ⊢ B)
         → Value (lam p t)
 
   zero  : Value zero
@@ -57,9 +56,6 @@ data Value {Γ : Con n} : {A : Type} → Γ ⊢ A → Set ℓ where
   ⟨_,_⟩ : Value t₁ → Value t₂
         → Value (⟨ t₁ , t₂ ⟩)
 
-  ref   : (x : Γ ∋ᶜ ref)
-        → Value (` x)
-
 renValue : {Γ : Con n} {Δ : Con m}
         → {t : Γ ⊢ A}
         → (ρ : Ren Δ Γ)
@@ -71,7 +67,6 @@ renValue ρ (suc v)    = suc (renValue ρ v)
 renValue ρ star       = star
 renValue ρ (! v)      = ! renValue ρ v
 renValue ρ ⟨ v , v₁ ⟩ = ⟨ renValue ρ v , renValue ρ v₁ ⟩
-renValue ρ (ref x)    = ref (renVar ρ x)
 
 unrenValue : {Γ : Con n} {Δ : Con m}
           → (ρ : Ren Δ Γ)
@@ -84,7 +79,6 @@ unrenValue ρ {t = suc _}     (suc v)     = suc (unrenValue ρ v)
 unrenValue ρ {t = star}      star        = star
 unrenValue ρ {t = ! _}       (! v)       = ! unrenValue ρ v
 unrenValue ρ {t = ⟨ _ , _ ⟩} ⟨ v₁ , v₂ ⟩ = ⟨ unrenValue ρ v₁ , unrenValue ρ v₂ ⟩
-unrenValue ρ {t = ` x}       (ref _)     = ref x
 
 _⊢ᵥ_ : Con n → Type → Set ℓ
 Γ ⊢ᵥ A = Σ[ t ∈ Γ ⊢ A ] Value t
@@ -110,7 +104,6 @@ prop-Value (suc v) (suc v′) = cong suc (prop-Value v v′)
 prop-Value star star = refl
 prop-Value (! v) (! v′) = cong !_ (prop-Value v v′)
 prop-Value ⟨ v , v₁ ⟩ ⟨ v′ , v₁′ ⟩ = cong₂ ⟨_,_⟩ (prop-Value v v′) (prop-Value v₁ v₁′)
-prop-Value (ref x) (ref .x) = refl
 
 ------------------------------------------------------------------------
 -- Eliminators
@@ -125,10 +118,10 @@ data Elim (Γ : Con n) : (A B : Type) → Set ℓ where
   ⟨_,-⟩ₑ : Δ ⊢ᵥ A →         Ren Γ Δ → Elim Γ B (A ⊗ B)
 
   let⋆[-]ₑ   : Δ ⊢ A                 → Ren Γ Δ → Elim Γ Unit A
-  let![-]ₑ   : Δ ∙ var A ⊢ B         → Ren Γ Δ → Elim Γ (! A) B
-  let⊗[-]ₑ   : Δ ∙ var A ∙ var B ⊢ C → Ren Γ Δ → Elim Γ (A ⊗ B) C
+  let![-]ₑ   : Δ ∙ A ⊢ B         → Ren Γ Δ → Elim Γ (! A) B
+  let⊗[-]ₑ   : Δ ∙ A ∙ B ⊢ C → Ren Γ Δ → Elim Γ (A ⊗ B) C
 
-  linearlyₑ  : Γ ∋ᶜ var Lin → Elim Γ (! A) (! A)
+  linearlyₑ  : Γ ∋ᶜ Lin → Elim Γ (! A) (! A)
 
   consumeₑ   : Elim Γ Lin Unit
   duplicateₑ : Elim Γ Lin (Lin ⊗ Lin)
@@ -172,7 +165,7 @@ renᵉ ρ (write₂ₑ arr v E) = write₂ₑ arr v (ρ • E)
 renᵉ ρ (write₃ₑ arr i)   = write₃ₑ arr i
 renᵉ ρ freeₑ             = freeₑ
 
-ren1ᵉ : (𝓐 : ConItem C) → Elim Γ A B → Elim (Γ ∙ 𝓐) A B
+ren1ᵉ : (C : Type) → Elim Γ A B → Elim (Γ ∙ C) A B
 ren1ᵉ _ = renᵉ (stepRen idRen)
 
 -- Evaluation stacks, indexed by the size of the heap
@@ -187,10 +180,10 @@ renˢ : Ren Γ′ Γ → Stack Γ A B → Stack Γ′ A B
 renˢ ρ ε = ε
 renˢ ρ (e ∙ S) = renᵉ ρ e ∙ renˢ ρ S
 
-ren1ˢ : (𝓐 : ConItem C) → Stack Γ A B → Stack (Γ ∙ 𝓐) A B
+ren1ˢ : (C : Type) → Stack Γ A B → Stack (Γ ∙ C) A B
 ren1ˢ _ = renˢ (stepRen idRen)
 
-ren2ˢ : Stack Γ A B → Stack (Γ ∙ 𝓒 ∙ 𝓓) A B
+ren2ˢ : Stack Γ A B → Stack (Γ ∙ C ∙ D) A B
 ren2ˢ = renˢ (stepRen (stepRen idRen))
 
 private
@@ -247,27 +240,27 @@ _++S_ : (S : Stack Γ A B) (S′ : Stack Γ B C) → Stack Γ A C
 
 infixl 24 _∙[_]ₕ_
 
-data HeapObject : Con n → ConItem A → Set ℓ where
-  value : Δ ⊢ᵥ A → Ren Γ Δ → HeapObject Γ (var A)
-  array : Vec Nat n        → HeapObject Γ ref
-  lin   :                    HeapObject Γ (var Lin)
-  ↯     :                    HeapObject Γ (var A)
+data HeapObject : Con n → Type → Set ℓ where
+  value : Δ ⊢ᵥ A → Ren Γ Δ → HeapObject Γ A
+  array : Vec Nat n        → HeapObject Γ Arr
+  lin   :                    HeapObject Γ Lin
+  ↯     :                    HeapObject Γ A
 
-renᵒ : Ren Γ Δ → HeapObject Δ 𝓐 → HeapObject Γ 𝓐
+renᵒ : Ren Γ Δ → HeapObject Δ A → HeapObject Γ A
 renᵒ ρ (value v E) = value v (ρ • E)
 renᵒ ρ (array xs)  = array xs
 renᵒ ρ lin         = lin
 renᵒ ρ ↯           = ↯
 
-ren1ᵒ : HeapObject Γ 𝓐 → HeapObject (Γ ∙ 𝓑) 𝓐
+ren1ᵒ : HeapObject Γ A → HeapObject (Γ ∙ B) A
 ren1ᵒ = renᵒ (stepRen idRen)
 
 data Heap : Con n → Set ℓ where
   ε       : Heap ε
   _∙[_]ₕ_ : Heap Γ
           → M
-          → HeapObject Γ 𝓐
-          → Heap (Γ ∙ 𝓐)
+          → HeapObject Γ A
+          → Heap (Γ ∙ A)
 
 -- pattern _∙[_]_ H p o = consₕ H p o
 
@@ -276,17 +269,17 @@ private
     E E′ : Ren _ _
     o o′ o″ : HeapObject _ _
     v : _ ⊢ᵥ _
-    γ δ : Conₘ n
-    H H′ H″ : Heap Γ
-    x : Γ ∋ᶜ 𝓐
+    γ δ : Conₘ _
+    H H′ H″ : Heap _
+    x : _ ∋ᶜ _
 
 -- Heap variable lookup (with grade update)
 -- Note that lookup fails e.g. when the grade is 𝟘.
 
 -- infixl 20 _⊢_↦[_]_⨾_
 
--- data _⊢_↦[_]_⨾_ : (H : Heap Γ) (x : Γ ∋ᶜ 𝓐) (q : M)
---                   (o : HeapObject Γ 𝓐) (H′ : Heap Γ) → Set ℓ where
+-- data _⊢_↦[_]_⨾_ : (H : Heap Γ) (x : Γ ∋ᶜ A) (q : M)
+--                   (o : HeapObject Γ A) (H′ : Heap Γ) → Set ℓ where
 --   vz : ren1ᵒ o ≡ o′
 --      → p - q ≡ r
 --      → H ∙[ p ]ₕ o
@@ -304,8 +297,8 @@ private
 
 -- -- Heap lookup (without grade update)
 
--- data _⊢_↦_ : (H : Heap Γ) (x : Γ ∋ᶜ 𝓐)
---              (o : HeapObject Γ 𝓐) → Set ℓ where
+-- data _⊢_↦_ : (H : Heap Γ) (x : Γ ∋ᶜ A)
+--              (o : HeapObject Γ A) → Set ℓ where
 --   vz  : ren1ᵒ o ≡ o′
 --       → H ∙[ p ]ₕ o ⊢ vz ↦ o′
 
@@ -315,8 +308,8 @@ private
 
 infixl 20 _⊢_↦[_-_]_⨾_
 
-data _⊢_↦[_-_]_⨾_ : (H : Heap Γ) (x : Γ ∋ᶜ 𝓐) (p q : M)
-                    (o : HeapObject Γ 𝓐) (H′ : Heap Γ) → Set ℓ where
+data _⊢_↦[_-_]_⨾_ : (H : Heap Γ) (x : Γ ∋ᶜ A) (p q : M)
+                    (o : HeapObject Γ A) (H′ : Heap Γ) → Set ℓ where
   vz[_] : ren1ᵒ o ≡ o′
         → p - q ≡ r
         → H ∙[ p ]ₕ o
@@ -332,28 +325,27 @@ data _⊢_↦[_-_]_⨾_ : (H : Heap Γ) (x : Γ ∋ᶜ 𝓐) (p q : M)
          ⊢ vs x ↦[ p - q ] o′
          ⨾ H′ ∙[ p′ ]ₕ o″
 
-_⊢_↦_ : Heap Γ → Γ ∋ᶜ 𝓐 → HeapObject Γ 𝓐 → Set ℓ
+_⊢_↦_ : Heap Γ → Γ ∋ᶜ A → HeapObject Γ A → Set ℓ
 H ⊢ x ↦ o = ∃ λ p → H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
 
-_⊢_↦[_] : Heap Γ → Γ ∋ᶜ 𝓐 → M → Set ℓ
+_⊢_↦[_] : Heap Γ → Γ ∋ᶜ A → M → Set ℓ
 H ⊢ x ↦[ p ] = ∃ λ o → H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
 
-_⊢_↦[_]_ : Heap Γ → Γ ∋ᶜ 𝓐 → M → HeapObject Γ 𝓐 → Set ℓ
+_⊢_↦[_]_ : Heap Γ → Γ ∋ᶜ A → M → HeapObject Γ A → Set ℓ
 H ⊢ x ↦[ p ] o = H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
 
-_⊢_↦[-_]_⨾_ : Heap Γ → Γ ∋ᶜ 𝓐 → M → HeapObject Γ 𝓐 → Heap Γ → Set ℓ
+_⊢_↦[-_]_⨾_ : Heap Γ → Γ ∋ᶜ A → M → HeapObject Γ A → Heap Γ → Set ℓ
 H ⊢ x ↦[- q ] o ⨾ H′ = ∃ λ p → H ⊢ x ↦[ p - q ] o ⨾ H′
 
 private
   variable
-    ref′ : Γ ∋ᶜ ref
     xs xs′ : Vec Nat n
 
 -- Heap array update
 
 syntax HeapUpdate xs H x H′ = H ⊢ x ≔ xs ⨾ H′
 
-data HeapUpdate {n} (xs : Vec Nat n) : (H : Heap Γ) (x : Γ ∋ᶜ ref)
+data HeapUpdate {n} (xs : Vec Nat n) : (H : Heap Γ) (x : Γ ∋ᶜ Arr)
                                        (H′ : Heap Γ) → Set ℓ where
   vz : {xs′ : Vec Nat n}
      → H ∙[ 𝟙 ]ₕ array xs′
@@ -361,11 +353,11 @@ data HeapUpdate {n} (xs : Vec Nat n) : (H : Heap Γ) (x : Γ ∋ᶜ ref)
      ⨾ H ∙[ 𝟙 ]ₕ array xs
 
   vs_ : H
-      ⊢ ref′ ≔ xs
+      ⊢ x ≔ xs
       ⨾ H′
 
       → H  ∙[ p ]ₕ o
-      ⊢ vs ref′ ≔ xs
+      ⊢ vs x ≔ xs
       ⨾ H′ ∙[ p ]ₕ o
 
 pattern vz[] p-q≡r = vz[ refl ] p-q≡r
@@ -398,7 +390,7 @@ record State (Γ : Con m) (Δ : Con n) (A B : Type) : Set ℓ where
 ⦅ let⋆[-]ₑ u E ⦆ᵉ t     = let⋆[ t ] (ren E u)
 ⦅ let![-]ₑ u E ⦆ᵉ t     = let![ t ] (ren (liftRen E) u)
 ⦅ let⊗[-]ₑ u E ⦆ᵉ t     = let⊗[ t ] ren (liftRen (liftRen E)) u
-⦅ linearlyₑ x ⦆ᵉ t      = linearly (ren1 _ t)
+⦅ linearlyₑ l ⦆ᵉ t      = linearly (ren1 _ t)
 ⦅ consumeₑ ⦆ᵉ l         = consume l
 ⦅ duplicateₑ ⦆ᵉ l       = duplicate l
 ⦅ new₁ₑ l E ⦆ᵉ s        = new (ren E l) s
@@ -414,57 +406,14 @@ record State (Γ : Con m) (Δ : Con n) (A B : Type) : Set ℓ where
 ⦅ ε ⦆ = idᶠ
 ⦅ e ∙ S ⦆ = ⦅ S ⦆ ∘ᶠ ⦅ e ⦆ᵉ
 
--- Subst : Con m → Con n → Set ℓ
--- Subst Δ Γ = ∀ {A} → Γ ∋ᶜ var A → Δ ⊢ A
-
--- idSubst : Subst Γ Γ
--- idSubst = `_
-
--- consSubst : Subst Δ Γ → Δ ⊢ A → Subst Δ (Γ ∙ var A)
--- consSubst σ t vz     = t
--- consSubst σ t (vs x) = σ x
-
--- toSubstₕ : Heap Γ → Subst ε Γ
--- toSubstₕ ε = idSubst
--- toSubstₕ (H ∙ (_ , t , E)) =
---   let σ = toSubstₕ H
---   in  consSubst σ (wk E t [ σ ])
-
--- infix 25 _[_]ₕ
--- infix 25 _[_]⇑ₕ
-
--- _[_]ₕ : Term m → Heap m → Term 0
--- t [ H ]ₕ = t [ toSubstₕ H ]
-
--- _[_]⇑ₕ : Term (1+ m) → Heap m → Term 1
--- t [ H ]⇑ₕ = t [ liftSubst (toSubstₕ H) ]
-
--- norm : State Γ A B → Γ ⊢ A
--- norm ⟨ H , t , E , S ⟩ = ⦅ S ⦆ (wk E t) [ H ]ₕ
-
 ------------------------------------------------------------------------
 -- Usage
-
--- -- For usage context γ, multiplicity p and q, and closure c,
--- --   γ ⨾ p ▸ᶜ[ q ] c
--- -- means that c is well-resourced in γ
--- data _⨾_▸ᶜ[_]_ (γ : Conₘ n) (p : M) (q : M) :
---                (c : Γ ⊩[ Δ ]⊢ A) → Set ℓ where
---   ▸ᶜ : γ ▸ t
---      → q ≤ p -- required by proof
---      → γ ⨾ p ▸ᶜ[ q ] (t , E)
--- ...
--- data _▸ʰ_ : {Γ : Con n} → Conₘ n → Heap Γ → Set ℓ where
---   ε : ε ▸ʰ ε
---  _∙_ : γ +ᶜ p ·ᶜ wkConₘ E δ ▸ʰ H
---      → δ ⨾ p ▸ᶜ[ q ] (t , E)
---      → γ ∙ p ▸ʰ H ∙[ p ] (t , E)
 
 private
   variable
     v₁ v₂ : _ ⊢ᵥ _
 
-data _▸ᵒ[_]_ {n} {Γ : Con n} : Conₘ n → M → HeapObject Γ 𝓐 → Set ℓ where
+data _▸ᵒ[_]_ {n} {Γ : Con n} : Conₘ n → M → HeapObject Γ A → Set ℓ where
   value : γ ▸ ⦅ v ⦆ᵛ
         → renConₘ E γ ▸ᵒ[ p ] value v E
   array𝟘 : 𝟘ᶜ ▸ᵒ[ 𝟘 ] array xs
@@ -486,9 +435,10 @@ data _▸ʰ_ : {Γ : Con n} → Conₘ n → Heap Γ → Set ℓ where
 data _▸ᵉ_ {n : Nat} {Γ : Con n} : (γ : Conₘ n)
                                   (e : Elim Γ A B) → Set ℓ where
   -∘ₑ_ : γ ▸ u
-        → p ·ᶜ renConₘ E γ ▸ᵉ (Elim _ _ B ∋ (-∘⟨ p ⟩ₑ u) E)
+       → p ·ᶜ renConₘ E γ ▸ᵉ (Elim _ _ B ∋ (-∘⟨ p ⟩ₑ u) E)
   _∘ₑ- : γ ▸ ⦅ v ⦆ᵛ
-        → renConₘ E γ ▸ᵉ (v ∘⟨ p ⟩ₑ-) E
+       → p ≢ 𝟘
+       → renConₘ E γ ▸ᵉ (v ∘⟨ p ⟩ₑ-) E
 
   sucₑ  : 𝟘ᶜ ▸ᵉ (Elim _ _ ℕ ∋ sucₑ)
   !-ₑ   : 𝟘ᶜ ▸ᵉ (Elim _ _ (! B) ∋ !-ₑ)
@@ -505,6 +455,8 @@ data _▸ᵉ_ {n : Nat} {Γ : Con n} : (γ : Conₘ n)
   let![-]ₑ : γ ∙ ω ▸ u
           → renConₘ E γ ▸ᵉ let![-]ₑ u E
 
+  -- Is this right?
+  -- ` x will not be well-resourced when x is evaluated
   linearlyₑ : γ ▸ ` x
             → γ ▸ᵉ linearlyₑ {A = A} x
 
@@ -517,7 +469,7 @@ data _▸ᵉ_ {n : Nat} {Γ : Con n} : (γ : Conₘ n)
 
   read₁ₑ : γ ▸ t
          → renConₘ E γ ▸ᵉ read₁ₑ t E
-  read₂ₑ : renConₘ E γ ▸ᵉ read₂ₑ n
+  read₂ₑ : γ ▸ᵉ read₂ₑ n
 
   write₁ₑ : γ ▸ t
           → δ ▸ u
@@ -527,17 +479,6 @@ data _▸ᵉ_ {n : Nat} {Γ : Con n} : (γ : Conₘ n)
   write₃ₑ : 𝟘ᶜ ▸ᵉ write₃ₑ n m
 
   freeₑ : 𝟘ᶜ ▸ᵉ freeₑ
-
-∣e∣≡𝟙 : {e : Elim Γ Arr B}
-      → γ ▸ᵉ e
-      → ∣ e ∣ᵉ ≡ 𝟙
-∣e∣≡𝟙 {e = (f ∘ₑ-) E} (▸f ∘ₑ-) = {! ▸f  !}
-∣e∣≡𝟙 {e = !-ₑ} !-ₑ = {!   !}
-∣e∣≡𝟙 {e = ⟨-, x ⟩ₑ E} ▸e = refl
-∣e∣≡𝟙 {e = ⟨ x ,-⟩ₑ E} ▸e = refl
-∣e∣≡𝟙 {e = read₂ₑ x} ▸e = refl
-∣e∣≡𝟙 {e = write₃ₑ x E} ▸e = refl
-∣e∣≡𝟙 {e = freeₑ} ▸e = refl
 
 -- Usage of stacks.
 
@@ -558,17 +499,4 @@ _⨾_⨾_▸_ : (γ : Conₘ n) (δ : Conₘ m) (η : Conₘ n)
   γ ▸ʰ H ×
   δ ▸ t ×
   η ▸ˢ S ×
-  γ ≤ᶜ ∣ S ∣ ·ᶜ renConₘ E δ +ᶜ η
-
--- module _ where
---   private
---     variable
---       x : Γ ∋ᶜ var A
-
---   ▸-heapLookup : H ⊢ x ↦[ q ] value (v , E) ⨾ H′
---                → γ ▸ʰ H
---                → γ ⟨ toFin x ⟩ - q ≤ r
---                → q ≢ 𝟘
---                → ∃ λ δ → δ ▸ ⦅ v ⦆ᵛ × (γ , toFin x ≔ r) +ᶜ q ·ᶜ wkConₘ E δ ▸ʰ H′
---   ▸-heapLookup (here x)  ▸H p-q≤r q≢𝟘 = {!   !}
---   ▸-heapLookup (there x) ▸H p-q≤r q≢𝟘 = {!   !}
+  γ ≈ᶜ ∣ S ∣ ·ᶜ renConₘ E δ +ᶜ η
