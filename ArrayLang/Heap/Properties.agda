@@ -42,15 +42,27 @@ private
     S S′ : Stack _ _ _
 
 ren⦅⦆≡⦅ren⦆ : (v : Γ ⊢ᵥ A)
-          → ren ρ ⦅ v ⦆ᵛ ≡ ⦅ renᵛ ρ v ⦆ᵛ
-ren⦅⦆≡⦅ren⦆ (_ , lam p x)               = refl
+            → ren ρ ⦅ v ⦆ᵛ ≡ ⦅ renᵛ ρ v ⦆ᵛ
+ren⦅⦆≡⦅ren⦆ (_ , lam _ -)               = refl
 ren⦅⦆≡⦅ren⦆ (_ , zero)                  = refl
 ren⦅⦆≡⦅ren⦆ (suc t , suc v)             = cong suc (ren⦅⦆≡⦅ren⦆ (t , v))
 ren⦅⦆≡⦅ren⦆ (_ , star)                  = refl
 ren⦅⦆≡⦅ren⦆ (! t , ! v)                 = cong !_ (ren⦅⦆≡⦅ren⦆ (t , v))
 ren⦅⦆≡⦅ren⦆ (⟨ t₁ , t₂ ⟩ , ⟨ v₁ , v₂ ⟩) = cong₂ ⟨_,_⟩ (ren⦅⦆≡⦅ren⦆ (t₁ , v₁)) (ren⦅⦆≡⦅ren⦆ (t₂ , v₂))
+ren⦅⦆≡⦅ren⦆ (` _ , ref v)               = refl
+ren⦅⦆≡⦅ren⦆ (` _ , lin _)               = refl
 
--- Equality of eliminators and stacks via a weakening
+renNat→⊢ : ∀ n → ren ρ (Nat→⊢ n) ≡ Nat→⊢ n
+renNat→⊢ 0      = refl
+renNat→⊢ (1+ n) = cong suc (renNat→⊢ n)
+
+inv-renNat→⊢ : ren ρ t ≡ Nat→⊢ n
+             → t ≡ Nat→⊢ n
+inv-renNat→⊢ {n = 0}    ρt≡zero = ren-zero ρt≡zero
+inv-renNat→⊢ {n = 1+ n} ρt≡suc  =
+  case ren-suc ρt≡suc of λ { (t′ , refl , ρt′≡Nat→⊢) →
+  cong suc (inv-renNat→⊢ ρt′≡Nat→⊢)
+  }
 
 ren1ˢ-interchange : {Γ : Con n} {Δ : Con m}
                     (S : Stack Δ A B)
@@ -131,18 +143,8 @@ renᵒ-value : renᵒ ρ o ≡ value v E
            → ∃ λ E′ → o ≡ value v E′ × ρ • E′ ≡ E
 renᵒ-value {o = value _ _} refl = _ , refl , refl
 
-renᵒ→renᵒ-remap : (ρ : Ren Γ Δ)
-                → (x : Δ ∋ᶜ B)
-                → {o  : HeapObject Δ A}
-                → {o′ : HeapObject Γ A}
-                → renᵒ ρ o ≡ o′
-                → renᵒ (remapRen x ρ) o ≡ ren1ᵒ o′
-renᵒ→renᵒ-remap ρ x {o = value v E} refl = cong (value v) {!!}
-renᵒ→renᵒ-remap ρ x {o = array xs} refl = refl
-renᵒ→renᵒ-remap ρ x {o = lin} refl = refl
-renᵒ→renᵒ-remap ρ x {o = ↯} refl = refl
-
-value-inj : ∀ {n m m′} {Γ : Con n} {Δ : Con m} {Δ′ : Con m′}
+value-inj : ∀ {n m m′}
+            {Γ : Con n} {Δ : Con m} {Δ′ : Con m′}
             {v : Δ ⊢ᵥ A} {v′ : Δ′ ⊢ᵥ A} →
             {E : Ren Γ Δ} {E′ : Ren Γ Δ′} →
             value v E ≡ value v′ E′ →
@@ -177,36 +179,6 @@ renᵒ-inj ρ ↯           ↯             _    = refl
 renᵒ-interchange : (ρ : Ren Γ Δ) (o : HeapObject Δ A)
                  → ren1ᵒ {B = B} (renᵒ ρ o) ≡ renᵒ (liftRen ρ) (ren1ᵒ o)
 renᵒ-interchange = {!!}
-
--∘ₑ≡ : ren ρ u ≡ ren σ u′
-     → (Elim _ (_ [ p ]⇒ _) B ∋ (-∘ₑ u) ρ) ≡ (-∘ₑ u′) σ
--∘ₑ≡ {u = ` x} p = case ren-var (sym p) of λ { (x′ , refl , p) → {!p!} }
--∘ₑ≡ {u = lam p u} = {!!}
--∘ₑ≡ {u = u ∘ u₁} = {!!}
--∘ₑ≡ {u = zero} = {!!}
--∘ₑ≡ {u = suc u} = {!!}
--∘ₑ≡ {u = star} = {!!}
--∘ₑ≡ {u = let⋆[ u ] u₁} = {!!}
--∘ₑ≡ {u = ! u} = {!!}
--∘ₑ≡ {u = let![ u ] u₁} = {!!}
--∘ₑ≡ {u = ⟨ u , u₁ ⟩} = {!!}
--∘ₑ≡ {u = let⊗[ u ] u₁} = {!!}
--∘ₑ≡ {u = linearly u} = {!!}
--∘ₑ≡ {u = consume u} = {!!}
--∘ₑ≡ {u = duplicate u} = {!!}
--∘ₑ≡ {u = new u u₁} = {!!}
--∘ₑ≡ {u = read u u₁} = {!!}
--∘ₑ≡ {u = write u u₁ u₂} = {!!}
--∘ₑ≡ {u = free u} = {!!}
-
--- renᵒ-inj : {o o′ : HeapObject Γ A} →
---           renᵒ ρ o ≡ renᵒ ρ o′ →
---           o ≡ o′
--- renᵒ-inj {o = value v E} {value v′ E′} vρE≡v′ρE′ with value-inj vρE≡v′ρE′
--- ... | refl , refl , ρ•E≡ρ•E′ , refl = cong (value v) (•-inj ρ•E≡ρ•E′)
--- renᵒ-inj {o = array xs}  {array .xs}   refl = refl
--- renᵒ-inj {o = lin}       {lin}         refl = refl
--- renᵒ-inj {o = ↯}         {↯}           refl = refl
 
 renᵒ-array : {xs : Vec Nat n}
            → renᵒ ρ o ≡ array xs
@@ -245,3 +217,29 @@ lookup→write {H = H ∙[ p ]ₕ o′} {x = vs x} (vs[ ren-o≡array ] l ) i v 
         → ∃ λ r → p - q ≡ r
 ↦[-]→-≡ (vz[] p-q≡r) = _ , p-q≡r
 ↦[-]→-≡ (vs[] l) = ↦[-]→-≡ l
+
+inv-↦[𝟘-] : ⦃ Has-well-behaved-zero M semiring-with-meet ⦄
+          → H ⊢ x ↦[ 𝟘 - q ] o ⨾ H′
+          → q ≡ 𝟘 × H ≡ H′
+inv-↦[𝟘-] (vz[] 𝟘-q≡r) = case 𝟘-p≡q 𝟘-q≡r of λ where
+  (refl , refl) → refl , refl
+inv-↦[𝟘-] (vs[ _ ] l) with inv-↦[𝟘-] l
+... | (refl , refl) = refl , refl
+
+post-lookup : p - q ≡ r
+            → H  ⊢ x ↦[ p - q ] o ⨾ H′
+            → H′ ⊢ x ↦[ r ] o
+post-lookup {r = r} p-q≡r (vz[] p-q≡r′) =
+  case -≡-functional p-q≡r p-q≡r′ of λ { refl →
+  vz[] p-𝟘≡p
+  }
+post-lookup p-q≡r (vs[] l) = vs[] post-lookup p-q≡r l
+
+lookup-det𝟘 : ⦃ Has-well-behaved-zero M semiring-with-meet ⦄
+            → H ⊢ x ↦[ 𝟘 ] o
+            → H ⊢ x ↦[ p - q ] o′ ⨾ H′
+            → p ≡ 𝟘 × q ≡ 𝟘 × o′ ≡ o × H ≡ H′
+lookup-det𝟘 (vz[] _) (vz[] 𝟘-q≡r) = case 𝟘-p≡q 𝟘-q≡r of λ where
+  (refl , refl) → refl , refl , refl , refl
+lookup-det𝟘 (vs[] ↦𝟘) (vs[] ↦[p-q]) with lookup-det𝟘 ↦𝟘 ↦[p-q]
+... | (refl , refl , refl , refl) = refl , refl , refl , refl

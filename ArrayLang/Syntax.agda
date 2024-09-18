@@ -11,7 +11,7 @@ open import Tools.Empty
 open import Tools.Unit
 open import Tools.Bool
 open import Tools.Nat using (Nat; 1+) renaming (_+_ to _+Nat_)
-open import Tools.Fin using (Fin; x0; _+1)
+open import Tools.Fin using (Fin; x0; _+1; suc-injective)
 open import Tools.Product
 open import Tools.Sum using (_⊎_; inj₁; inj₂)
 open import Tools.Function
@@ -24,6 +24,7 @@ open import Data.Vec
 
 infixr 20 _⊗_
 infixr 15 _[_]⇒_
+infixr 15 _⊸_
 
 infixl 24 _∙_
 infixl 24 _∙[_]_
@@ -38,7 +39,7 @@ infix 25 !_
 infix 25 let⋆[_]_
 infix 25 let![_]_
 infix 25 let⊗[_]_
-infix 25 let-[_]_
+infix 25 let⟨_⟩[_]_
 infixl 30 _∘⟨_⟩_
 infixl 30 _∘_
 
@@ -53,6 +54,9 @@ data Type : Set ℓ where
 
   _⊗_  : Type → Type → Type
   !_   : Type → Type
+
+_⊸_ : Type → Type → Type
+_⊸_ = _[ 𝟙 ]⇒_
 
 private
   variable
@@ -137,17 +141,13 @@ data _⊢_ {n} : Con n → Type → Set ℓ where
   free  : Γ ⊢ Arr
         → Γ ⊢ Unit
 
-fromNat : Nat → Γ ⊢ ℕ
-fromNat 0 = zero
-fromNat (1+ n) = suc (fromNat n)
-
 pattern _∘⟨_⟩_ t p u = _∘_ {p = p} t u
 
-let-[_]_ : {p : M}
-         → (t : Γ ⊢ A)
-         → (u : Γ ∙ A ⊢ B)
-         → Γ ⊢ B
-let-[_]_ {p = p} t u = (lam p u) ∘ t
+let⟨_⟩[_]_ : (p : M)
+           → (t : Γ ⊢ A)
+           → (u : Γ ∙ A ⊢ B)
+           → Γ ⊢ B
+let⟨_⟩[_]_ p t u = (lam p u) ∘ t
 
 private
   variable
@@ -445,6 +445,11 @@ renVar∉ : (ρ : Ren Γ Δ)
 renVar∉ (ρ ∙ z) x (x≢z , _)  vz     = x≢z
 renVar∉ (ρ ∙ _) x (_ , ρy∉ρ) (vs y) = renVar∉ ρ x ρy∉ρ y
 
+Distinct→≢toFin : Distinct x y
+                → toFin x ≢ toFin y
+Distinct→≢toFin {x = vs _} {y = vz}     _ ()
+Distinct→≢toFin {x = vs x} {y = vs y} ≠ eq = ⊥-elim (Distinct→≢toFin ≠ (suc-injective eq))
+
 renVar-step : (ρ : Ren Γ Δ) (x : Δ ∋ᶜ A)
             → renVar (stepRen {A = B} ρ) x ≡ vs (renVar ρ x)
 renVar-step (ρ ∙ _) vz     = refl
@@ -550,6 +555,27 @@ renVar-inj (ρ ∙[ ρy∉ρ ] _) vz     (vs y) refl  = ⊥-elim (¬Distinct-ref
 renVar-inj (ρ ∙[ ρx∉ρ ] _) (vs x) vz     refl  = ⊥-elim (¬Distinct-refl (renVar ρ x) (renVar∉ ρ _ ρx∉ρ x))
 renVar-inj (ρ ∙ _)         (vs x) (vs y) ρx≡ρy = cong vs_ (renVar-inj ρ x y ρx≡ρy)
 
+ren-id : (t : Γ ⊢ A)
+       → ren idRen t ≡ t
+ren-id (` x) = cong `_ renVar-id
+ren-id (lam p t) = cong (lam p) (ren-id t)
+ren-id (t ∘ t₁) = cong₂ _∘_ (ren-id t) (ren-id t₁)
+ren-id zero = refl
+ren-id (suc t) = cong suc (ren-id t)
+ren-id star = refl
+ren-id (let⋆[ t ] t₁) = cong₂ let⋆[_]_ (ren-id t) (ren-id t₁)
+ren-id (! t) = cong !_ (ren-id t)
+ren-id (let![ t ] t₁) = cong₂ let![_]_ (ren-id t) (ren-id t₁)
+ren-id ⟨ t , t₁ ⟩ = cong₂ ⟨_,_⟩ (ren-id t) (ren-id t₁)
+ren-id (let⊗[ t ] t₁) = cong₂ let⊗[_]_ (ren-id t) (ren-id t₁)
+ren-id (linearly t) = cong linearly (ren-id t)
+ren-id (consume t) = cong consume (ren-id t)
+ren-id (duplicate t) = cong duplicate (ren-id t)
+ren-id (new t t₁) = cong₂ new (ren-id t) (ren-id t₁)
+ren-id (read t t₁) = cong₂ read (ren-id t) (ren-id t₁)
+ren-id (write t t₁ t₂) = cong₃ write (ren-id t) (ren-id t₁) (ren-id t₂)
+ren-id (free t) = cong free (ren-id t)
+
 mutual
   _•_ : Ren Γ Δ
       → Ren Δ Θ
@@ -624,26 +650,38 @@ renVar-comp ρ (σ ∙ _) (vs x) = renVar-comp ρ σ x
 stepRen-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ)
              → stepRen {A = A} ρ • σ ≡ stepRen (ρ • σ)
 stepRen-comp ρ ε              = refl
-stepRen-comp ρ (σ ∙[ x∉σ ] x) = cong₂ (λ σ y → σ ∙[ {!!} ] y) (stepRen-comp ρ σ) (renVar-step ρ x)
+stepRen-comp ρ (σ ∙[ x∉σ ] x) = cong₂ (λ σ y → σ ∙[ {!  !} ] y) (stepRen-comp ρ σ) (renVar-step ρ x)
 
 liftRen-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ)
              → liftRen {A = A} ρ • liftRen σ ≡ liftRen (ρ • σ)
 liftRen-comp ρ ε                           = refl
-liftRen-comp (ρ ∙[ x∉ρ ] x) (σ ∙[ y∉σ ] y) = cong₂ (λ η z → η ∙[ {!!} ] z ∙[ {!!} ] vz) {!!} {!renVar-step !}
+liftRen-comp (ρ ∙[ x∉ρ ] x) (σ ∙[ y∉σ ] y) = cong₂ (λ η z → η ∙[ {!!} ] z ∙[ {!!} ] vz) {!!} (renVar-lift-vs (ρ ∙ x) y)
 
 ren-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ) (t : Θ ⊢ A)
          → ren ρ (ren σ t) ≡ ren (ρ • σ) t
 ren-comp ρ σ (` x)           = cong `_ (renVar-comp ρ σ x)
-ren-comp ρ σ (lam p t)       = cong (lam p) {!ren-comp (liftRen ρ) (liftRen σ) t!}
+ren-comp ρ σ (lam p t)       = cong (lam p)
+  (begin
+    ren (liftRen ρ) (ren (liftRen σ) t) ≡⟨ ren-comp (liftRen ρ) (liftRen σ) t ⟩
+    ren (liftRen ρ • liftRen σ) t       ≡⟨ cong (λ ρ → ren ρ t) (liftRen-comp ρ σ) ⟩
+    ren (liftRen (ρ • σ)) t             ∎)
 ren-comp ρ σ (t ∘ t₁)        = cong₂ _∘_ (ren-comp ρ σ t) (ren-comp ρ σ t₁)
 ren-comp ρ σ zero            = refl
 ren-comp ρ σ (suc t)         = cong suc (ren-comp ρ σ t)
 ren-comp ρ σ star            = refl
 ren-comp ρ σ (let⋆[ t ] t₁)  = cong₂ let⋆[_]_ (ren-comp ρ σ t) (ren-comp ρ σ t₁)
 ren-comp ρ σ (! t)           = cong !_ (ren-comp ρ σ t)
-ren-comp ρ σ (let![ t ] t₁)  = cong₂ let![_]_ (ren-comp ρ σ t) {!ren-comp (liftRen ρ) (liftRen σ) t₁!}
+ren-comp ρ σ (let![ t ] t₁)  = cong₂ let![_]_ (ren-comp ρ σ t) (begin
+    ren (liftRen ρ) (ren (liftRen σ) t₁) ≡⟨ ren-comp (liftRen ρ) (liftRen σ) t₁ ⟩
+    ren (liftRen ρ • liftRen σ) t₁       ≡⟨ cong (λ ρ → ren ρ t₁) (liftRen-comp ρ σ) ⟩
+    ren (liftRen (ρ • σ)) t₁             ∎)
 ren-comp ρ σ ⟨ t , t₁ ⟩      = cong₂ ⟨_,_⟩ (ren-comp ρ σ t) (ren-comp ρ σ t₁)
-ren-comp ρ σ (let⊗[ t ] t₁)  = cong₂ let⊗[_]_ (ren-comp ρ σ t) {!ren-comp (liftRen ρ) (liftRen σ) t₁!}
+ren-comp ρ σ (let⊗[ t ] t₁)  = cong₂ let⊗[_]_ (ren-comp ρ σ t)
+  (begin
+    ren (liftRen (liftRen ρ)) (ren (liftRen (liftRen σ)) t₁) ≡⟨ ren-comp (liftRen (liftRen ρ)) (liftRen (liftRen σ)) t₁ ⟩
+    ren (liftRen (liftRen ρ) • liftRen (liftRen σ)) t₁       ≡⟨ cong (λ ρ → ren ρ t₁) (liftRen-comp (liftRen ρ) (liftRen σ)) ⟩
+    ren (liftRen (liftRen ρ • liftRen σ)) t₁                 ≡⟨ cong (λ ρ → ren (liftRen ρ) t₁) (liftRen-comp ρ σ) ⟩
+    ren (liftRen (liftRen (ρ • σ))) t₁                       ∎)
 ren-comp ρ σ (linearly t)    = cong linearly
   (subst (λ η → ren (liftRen ρ) (ren (liftRen σ) t) ≡ ren η t)
          (liftRen-comp _ _)
@@ -664,6 +702,9 @@ ren-comp ρ σ (free t)        = cong free (ren-comp ρ σ t)
 
 module _ where
   open import Graded.Context 𝕄
+  open import Graded.Context.Properties 𝕄
+  open import Graded.Modality.Properties 𝕄
+
   open import Tools.PropositionalEquality
 
   renConₘ : {Γ : Con m} {Δ : Con n}
@@ -673,11 +714,25 @@ module _ where
   renConₘ ε ε = 𝟘ᶜ
   renConₘ (ρ ∙ x) (γ ∙ p) = renConₘ ρ γ , toFin x ≔ p
 
+  renCon-𝟘ᶜ : (ρ : Ren Γ Δ)
+            → renConₘ ρ 𝟘ᶜ ≡ 𝟘ᶜ
+  renCon-𝟘ᶜ ε = refl
+  renCon-𝟘ᶜ (ρ ∙ x) = begin
+    (renConₘ ρ 𝟘ᶜ , toFin x ≔ 𝟘) ≡⟨ cong (_, _ ≔ _) (renCon-𝟘ᶜ ρ) ⟩
+    (𝟘ᶜ , toFin x ≔ 𝟘) ≡⟨ 𝟘ᶜ,≔𝟘 ⟩
+    𝟘ᶜ ∎
+
+  lookup-renCon-𝟘ᶜ : (ρ : Ren Γ Δ)
+                   → (x : Γ ∋ᶜ A)
+                   → renConₘ ρ 𝟘ᶜ ⟨ toFin x ⟩ ≡ 𝟘
+  lookup-renCon-𝟘ᶜ ρ x = begin
+    (renConₘ ρ 𝟘ᶜ ⟨ toFin x ⟩) ≡⟨ cong (_⟨ toFin x ⟩) (renCon-𝟘ᶜ ρ) ⟩
+    (𝟘ᶜ ⟨ toFin x ⟩) ≡⟨ 𝟘ᶜ-lookup (toFin x) ⟩
+    𝟘 ∎
+
   private
     variable
-      γ : Conₘ n
-
-  open import Graded.Context.Properties 𝕄
+      γ δ : Conₘ n
 
   unrelated-update : {Γ : Con n}
                    → (γ : Conₘ n)
@@ -695,7 +750,16 @@ module _ where
   ∉→Distinct-renVar (vz)   y {ρ ∙ x} (y≠x , _) = Distinct-sym y x y≠x
   ∉→Distinct-renVar (vs x) y {ρ ∙ _} (_ , y∉ρ) = ∉→Distinct-renVar x y y∉ρ
 
+
+  -- Renaming of modality contexts is monotone
+  -- If γ ≤ᶜ δ then wkConₘ ρ γ ≤ᶜ wkConₘ ρ δ
+
+  ren-≤ᶜ : (ρ : Ren Γ Δ) → γ ≤ᶜ δ → renConₘ ρ γ ≤ᶜ renConₘ ρ δ
+  ren-≤ᶜ {γ = ε}     {δ = ε}     ε       γ≤δ         = ≤ᶜ-refl
+  ren-≤ᶜ {γ = γ ∙ p} {δ = δ ∙ q} (ρ ∙ x) (γ≤δ ∙ p≤q) = update-monotone (toFin x) (ren-≤ᶜ ρ γ≤δ) p≤q
+
   -- Renaming of context lookups
+
   ren-⟨⟩ : (x : Δ ∋ᶜ A) (ρ : Ren Γ Δ)
          → renConₘ ρ γ ⟨ toFin (renVar ρ x) ⟩ ≡ γ ⟨ toFin x ⟩
   ren-⟨⟩ {γ = γ ∙ _} vz     (ρ ∙ y)        = update-lookup (renConₘ ρ γ) (toFin y)
@@ -704,6 +768,28 @@ module _ where
                                                                            (∉→Distinct-renVar x y y∉ρ) ⟩
     renConₘ ρ γ                 ⟨ toFin (renVar ρ x) ⟩ ≡⟨ ren-⟨⟩ x ρ ⟩
     γ                           ⟨ toFin x ⟩            ∎
+
+  -- Renaming of context updates
+
+  update-comm : (γ : Conₘ n) (x : Fin n) (y : Fin n)
+              → x ≢ y
+              → γ , x ≔ p , y ≔ q
+              ≡ γ , y ≔ q , x ≔ p
+  update-comm _ x0 x0 x≢y                 = ⊥-elim (x≢y refl)
+  update-comm (γ ∙ r) x0 (_+1 y) x≢y      = refl
+  update-comm (γ ∙ r) (_+1 x) x0 x≢y      = refl
+  update-comm (γ ∙ r) (_+1 x) (_+1 y) x≢y = cong (_∙ r) (update-comm γ x y λ where refl → x≢y refl)
+
+  ren-,≔ : (ρ : Ren Γ Δ)
+         → renConₘ ρ (γ , toFin x ≔ p)
+         ≡ renConₘ ρ γ , toFin (renVar ρ x) ≔ p
+  ren-,≔ {γ = γ ∙ q} {x = vz}       (ρ ∙ y)          = sym update-twice
+  ren-,≔ {γ = γ ∙ q} {x = vs x} {p} (ρ ∙[ y∉ρ ] y) = begin
+    renConₘ ρ (γ , toFin x ≔ p)          , toFin            y ≔ q ≡⟨ cong (_, _ ≔ _) (ren-,≔ ρ) ⟩
+    renConₘ ρ γ , toFin (renVar ρ x) ≔ p , toFin            y ≔ q ≡⟨ update-comm (renConₘ ρ γ) (toFin (renVar ρ x)) (toFin y)
+                                                                                 (Distinct→≢toFin (∉→Distinct-renVar x y y∉ρ)) ⟩
+    renConₘ ρ γ , toFin            y ≔ q , toFin (renVar ρ x) ≔ p ∎
+
 
 -- module TermExamples where
 --   id⊸ : ε ⊢ Nat [ 𝟙 ]⇒ Nat

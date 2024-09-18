@@ -33,6 +33,7 @@ private
     Γ Γ′ Δ Δ′ Θ Θ′ : Con n
     A B C D : Type
     t u t₁ t₂ : _ ⊢ _
+    x : _ ∋ᶜ _
     p p′ q r : M
     ρ : Ren Γ Δ
 
@@ -56,29 +57,38 @@ data Value {Γ : Con n} : {A : Type} → Γ ⊢ A → Set ℓ where
   ⟨_,_⟩ : Value t₁ → Value t₂
         → Value (⟨ t₁ , t₂ ⟩)
 
+  ref : (x : Γ ∋ᶜ Arr)
+      → Value (` x)
+
+  lin : (x : Γ ∋ᶜ Lin)
+      → Value (` x)
+
 renValue : {Γ : Con n} {Δ : Con m}
         → {t : Γ ⊢ A}
         → (ρ : Ren Δ Γ)
         → Value t
         → Value (ren ρ t)
-renValue ρ (lam p t)  = lam p (ren (liftRen _) t)
-renValue ρ zero       = zero
-renValue ρ (suc v)    = suc (renValue ρ v)
-renValue ρ star       = star
-renValue ρ (! v)      = ! renValue ρ v
-renValue ρ ⟨ v , v₁ ⟩ = ⟨ renValue ρ v , renValue ρ v₁ ⟩
+renValue ρ (lam p t)   = lam p (ren (liftRen _) t)
+renValue ρ zero        = zero
+renValue ρ (suc v)     = suc (renValue ρ v)
+renValue ρ star        = star
+renValue ρ (! v)       = ! renValue ρ v
+renValue ρ ⟨ t₁ , t₂ ⟩ = ⟨ renValue ρ t₁ , renValue ρ t₂ ⟩
+renValue ρ (ref x)     = ref (renVar ρ x)
+renValue ρ (lin x)     = lin (renVar ρ x)
 
-unrenValue : {Γ : Con n} {Δ : Con m}
-          → (ρ : Ren Δ Γ)
-          → {t : Γ ⊢ A}
-          → Value (ren ρ t)
-          → Value t
+unrenValue : (ρ : Ren Γ Δ)
+           → {t : Δ ⊢ A}
+           → Value (ren ρ t)
+           → Value t
 unrenValue ρ {t = lam p t}   (lam p v)   = lam p t
 unrenValue ρ {t = zero}      zero        = zero
 unrenValue ρ {t = suc _}     (suc v)     = suc (unrenValue ρ v)
 unrenValue ρ {t = star}      star        = star
 unrenValue ρ {t = ! _}       (! v)       = ! unrenValue ρ v
-unrenValue ρ {t = ⟨ _ , _ ⟩} ⟨ v₁ , v₂ ⟩ = ⟨ unrenValue ρ v₁ , unrenValue ρ v₂ ⟩
+unrenValue ρ {t = ⟨ _ , _ ⟩} ⟨ t₁ , t₂ ⟩ = ⟨ unrenValue ρ t₁ , unrenValue ρ t₂ ⟩
+unrenValue ρ {t = ` x}       (ref _)     = ref x
+unrenValue ρ {t = ` x}       (lin _)     = lin x
 
 _⊢ᵥ_ : Con n → Type → Set ℓ
 Γ ⊢ᵥ A = Σ[ t ∈ Γ ⊢ A ] Value t
@@ -98,12 +108,14 @@ Nat→⊢ 0      = zero
 Nat→⊢ (1+ n) = suc (Nat→⊢ n)
 
 prop-Value : (v v′ : Value t) → v ≡ v′
-prop-Value (lam p t) (lam .p .t) = refl
-prop-Value zero zero = refl
-prop-Value (suc v) (suc v′) = cong suc (prop-Value v v′)
-prop-Value star star = refl
-prop-Value (! v) (! v′) = cong !_ (prop-Value v v′)
-prop-Value ⟨ v , v₁ ⟩ ⟨ v′ , v₁′ ⟩ = cong₂ ⟨_,_⟩ (prop-Value v v′) (prop-Value v₁ v₁′)
+prop-Value (lam _ _)   (lam _ _)     = refl
+prop-Value zero        zero          = refl
+prop-Value (suc v)     (suc v′)      = cong suc (prop-Value v v′)
+prop-Value star        star          = refl
+prop-Value (! v)       (! v′)        = cong !_ (prop-Value v v′)
+prop-Value ⟨ v₁ , v₂ ⟩ ⟨ v₁′ , v₂′ ⟩ = cong₂ ⟨_,_⟩ (prop-Value v₁ v₁′) (prop-Value v₂ v₂′)
+prop-Value (ref x)     (ref x′)      = refl
+prop-Value (lin x)     (lin x′)      = refl
 
 ------------------------------------------------------------------------
 -- Eliminators
@@ -141,6 +153,12 @@ data Elim (Γ : Con n) : (A B : Type) → Set ℓ where
 pattern -∘⟨_⟩ₑ_ p u E = -∘ₑ_ {p = p} u E
 pattern _∘⟨_⟩ₑ- t p E = _∘ₑ- {p = p} t E
 
+open import Tools.Bool
+
+is-linearlyₑ : Elim Γ A B → Bool
+is-linearlyₑ (linearlyₑ _) = true
+is-linearlyₑ _             = false
+
 -- Renaming of eliminators
 
 renᵉ : Ren Γ′ Γ → Elim Γ A B → Elim Γ′ A B
@@ -149,7 +167,7 @@ renᵉ ρ ((t ∘⟨ p ⟩ₑ-) E)  = (t ∘⟨ p ⟩ₑ-) (ρ • E)
 renᵉ ρ sucₑ              = sucₑ
 renᵉ ρ !-ₑ               = !-ₑ
 renᵉ ρ (⟨-, t ⟩ₑ E)      = ⟨-, t ⟩ₑ (ρ • E)
-renᵉ ρ (⟨ v ,-⟩ₑ E)      = ⟨ v ,-⟩ₑ (ρ • E)
+renᵉ ρ (⟨ t ,-⟩ₑ E)      = ⟨ t ,-⟩ₑ (ρ • E)
 renᵉ ρ (let⋆[-]ₑ t E)    = let⋆[-]ₑ t (ρ • E)
 renᵉ ρ (let![-]ₑ t E)    = let![-]ₑ t (ρ • E)
 renᵉ ρ (let⊗[-]ₑ t E)    = let⊗[-]ₑ t (ρ • E)
@@ -232,8 +250,11 @@ _++S_ : (S : Stack Γ A B) (S′ : Stack Γ B C) → Stack Γ A C
 ∣ freeₑ          ∣ᵉ = 𝟙
 
 ∣_∣ : Stack Γ A B → M
-∣ ε ∣ = 𝟙
-∣ e ∙ S ∣ = ∣ S ∣ · ∣ e ∣ᵉ
+∣               ε ∣ = 𝟙
+∣ e           ∙ S ∣ with is-linearlyₑ e
+... | true  = 𝟙
+... | false = ∣ S ∣ · ∣ e ∣ᵉ
+
 
 ------------------------------------------------------------------------
 -- Heaps
@@ -241,7 +262,10 @@ _++S_ : (S : Stack Γ A B) (S′ : Stack Γ B C) → Stack Γ A C
 infixl 24 _∙[_]ₕ_
 
 data HeapObject : Con n → Type → Set ℓ where
-  value : Δ ⊢ᵥ A → Ren Γ Δ → HeapObject Γ A
+  -- A should not be Arr for value constructor
+  value : Δ ⊢ᵥ A
+        → Ren Γ Δ
+        → HeapObject Γ A
   array : Vec Nat n        → HeapObject Γ Arr
   lin   :                    HeapObject Γ Lin
   ↯     :                    HeapObject Γ A
@@ -271,7 +295,6 @@ private
     v : _ ⊢ᵥ _
     γ δ : Conₘ _
     H H′ H″ : Heap _
-    x : _ ∋ᶜ _
 
 -- Heap variable lookup (with grade update)
 -- Note that lookup fails e.g. when the grade is 𝟘.
@@ -331,17 +354,38 @@ H ⊢ x ↦ o = ∃ λ p → H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
 _⊢_↦[_] : Heap Γ → Γ ∋ᶜ A → M → Set ℓ
 H ⊢ x ↦[ p ] = ∃ λ o → H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
 
+_⊢_↦ : Heap Γ → Γ ∋ᶜ A → Set ℓ
+H ⊢ x ↦ = ∃₂ λ p o → H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
+
 _⊢_↦[_]_ : Heap Γ → Γ ∋ᶜ A → M → HeapObject Γ A → Set ℓ
 H ⊢ x ↦[ p ] o = H ⊢ x ↦[ p - 𝟘 ] o ⨾ H
 
 _⊢_↦[-_]_⨾_ : Heap Γ → Γ ∋ᶜ A → M → HeapObject Γ A → Heap Γ → Set ℓ
 H ⊢ x ↦[- q ] o ⨾ H′ = ∃ λ p → H ⊢ x ↦[ p - q ] o ⨾ H′
 
+-- data _⊢_≔[_]_∣_ : Heap Γ → Γ ∋ᶜ A → M → HeapObject Γ A → Heap Γ → Set ℓ where
+--   vz[_]≔_ : ren1ᵒ o ≡ o′
+--           → H ∙[ p ]ₕ o″
+--           ⊢ vz ≔[ p ] o′
+--           ∣ H ∙[ p ]ₕ o
+
+--   vs[_]≔_ : ren1ᵒ o ≡ o′
+--           → H
+--           ⊢ x ≔[ p ] o
+--           ∣ H′
+
+--           → H ∙[ q ]ₕ o″
+--           ⊢ vs x ≔[ p ] o′
+--           ∣ H′ ∙[ q ]ₕ o″
+
+-- _⊢_≔_∣_ : Heap Γ → Γ ∋ᶜ A → HeapObject Γ A → Heap Γ → Set ℓ
+-- H ⊢ x ≔ o ∣ H′ = ∃ λ p → H ⊢ x ≔[ p ] o ∣ H′
+
+-- Heap array update
+
 private
   variable
     xs xs′ : Vec Nat n
-
--- Heap array update
 
 syntax HeapUpdate xs H x H′ = H ⊢ x ≔ xs ⨾ H′
 
@@ -385,8 +429,8 @@ record State (Γ : Con m) (Δ : Con n) (A B : Type) : Set ℓ where
 ⦅ (t ∘ₑ-)  E ⦆ᵉ u       = ren E ⦅ t ⦆ᵛ ∘      u
 ⦅ sucₑ ⦆ᵉ t             = suc t
 ⦅ !-ₑ ⦆ᵉ t              = ! t
-⦅ ⟨-, u ⟩ₑ E ⦆ᵉ t       = ⟨ t , (ren E u) ⟩
-⦅ ⟨ v ,-⟩ₑ E ⦆ᵉ u       = ⟨ ren E ⦅ v ⦆ᵛ , u ⟩
+⦅ ⟨-, u ⟩ₑ E ⦆ᵉ t       = ⟨ t , ren E u ⟩
+⦅ ⟨ t ,-⟩ₑ E ⦆ᵉ u       = ⟨ ren E ⦅ t ⦆ᵛ , u ⟩
 ⦅ let⋆[-]ₑ u E ⦆ᵉ t     = let⋆[ t ] (ren E u)
 ⦅ let![-]ₑ u E ⦆ᵉ t     = let![ t ] (ren (liftRen E) u)
 ⦅ let⊗[-]ₑ u E ⦆ᵉ t     = let⊗[ t ] ren (liftRen (liftRen E)) u
@@ -416,10 +460,8 @@ private
 data _▸ᵒ[_]_ {n} {Γ : Con n} : Conₘ n → M → HeapObject Γ A → Set ℓ where
   value : γ ▸ ⦅ v ⦆ᵛ
         → renConₘ E γ ▸ᵒ[ p ] value v E
-  array𝟘 : 𝟘ᶜ ▸ᵒ[ 𝟘 ] array xs
-  array𝟙 : 𝟘ᶜ ▸ᵒ[ 𝟙 ] array xs
-  lin𝟘   : 𝟘ᶜ ▸ᵒ[ 𝟘 ] lin
-  lin𝟙   : 𝟘ᶜ ▸ᵒ[ 𝟙 ] lin
+  array : p ≡𝟘|𝟙 → 𝟘ᶜ ▸ᵒ[ p ] array xs
+  lin   : p ≡𝟘|𝟙 → 𝟘ᶜ ▸ᵒ[ p ] lin
 
 data _▸ʰ_ : {Γ : Con n} → Conₘ n → Heap Γ → Set ℓ where
   ε   : ε ▸ʰ ε
@@ -457,8 +499,8 @@ data _▸ᵉ_ {n : Nat} {Γ : Con n} : (γ : Conₘ n)
 
   -- Is this right?
   -- ` x will not be well-resourced when x is evaluated
-  linearlyₑ : γ ▸ ` x
-            → γ ▸ᵉ linearlyₑ {A = A} x
+  linearlyₑ : -- γ ▸ ` x
+              γ ▸ᵉ linearlyₑ {A = A} x
 
   consumeₑ   : 𝟘ᶜ ▸ᵉ consumeₑ
   duplicateₑ : 𝟘ᶜ ▸ᵉ duplicateₑ
@@ -499,4 +541,4 @@ _⨾_⨾_▸_ : (γ : Conₘ n) (δ : Conₘ m) (η : Conₘ n)
   γ ▸ʰ H ×
   δ ▸ t ×
   η ▸ˢ S ×
-  γ ≈ᶜ ∣ S ∣ ·ᶜ renConₘ E δ +ᶜ η
+  γ ≤ᶜ ∣ S ∣ ·ᶜ renConₘ E δ +ᶜ η

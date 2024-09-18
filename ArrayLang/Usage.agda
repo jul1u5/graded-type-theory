@@ -12,6 +12,8 @@ open import Graded.Context 𝕄
 open import Agda.Primitive
 open import Data.Vec
 open import Tools.Nat using (Nat)
+open import Tools.Sum
+open import Tools.PropositionalEquality
 
 open import ArrayLang.Syntax 𝕄
 
@@ -24,6 +26,9 @@ private
     A : Type
     t u v : _ ⊢ _
     x : _ ∋ᶜ _
+
+_≡𝟘|𝟙 : M → Set ℓ
+p ≡𝟘|𝟙 = p ≡ 𝟘 ⊎ p ≡ 𝟙
 
 infix 10 _▸_
 data _▸_ {Γ : Con n} : (γ : Conₘ n) → Γ ⊢ A → Set ℓ where

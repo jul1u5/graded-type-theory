@@ -21,6 +21,7 @@ open import ArrayLang.Heap.Properties 𝕄
 
 open import Tools.Empty
 open import Tools.Unit
+open import Tools.Bool
 open import Tools.Nat hiding (_≤_)
 open import Tools.Fin
 open import Tools.Product
@@ -53,7 +54,7 @@ private
 -- but this would require an additional syntax declaration.
 
 infix 5 _~ᵗ[_]_
-data _~ᵗ[_]_ {n m} {Γ : Con n} {Δ : Con m} : Γ ⊢ A → Ren Γ Δ → Δ ⊢ A → Set ℓ where
+data _~ᵗ[_]_ {Γ : Con n} {Δ : Con m} : Γ ⊢ A → Ren Γ Δ → Δ ⊢ A → Set ℓ where
   var : {ρ : Ren Γ Δ}
         (x : Δ ∋ᶜ A)
         {x′ : Γ ∋ᶜ A}
@@ -113,26 +114,6 @@ data _~ᵗ[_]_ {n m} {Γ : Con n} {Δ : Con m} : Γ ⊢ A → Ren Γ Δ → Δ �
   free  :      t ~ᵗ[ ρ ]      t′
         → free t ~ᵗ[ ρ ] free t′
 
-~ᵗ→≡ : t ~ᵗ[ ρ ] t′ → t ≡ ren ρ t′
-~ᵗ→≡ (var x′ refl)    = refl
-~ᵗ→≡ (lam p ~)        = cong (lam p) (~ᵗ→≡ ~)
-~ᵗ→≡ (~₁ ∘ ~₂)        = cong₂ _∘_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ zero             = refl
-~ᵗ→≡ (suc ~)          = cong suc (~ᵗ→≡ ~)
-~ᵗ→≡ star             = refl
-~ᵗ→≡ (let⋆[ ~₁ ] ~₂)  = cong₂ let⋆[_]_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ (! ~)            = cong !_        (~ᵗ→≡ ~)
-~ᵗ→≡ (let![ ~₁ ] ~₂)  = cong₂ let![_]_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ ⟨ ~₁ , ~₂ ⟩      = cong₂ ⟨_,_⟩    (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ (let⊗[ ~₁ ] ~₂)  = cong₂ let⊗[_]_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ (linearly ~)     = cong linearly  (~ᵗ→≡ ~)
-~ᵗ→≡ (consume ~)      = cong consume   (~ᵗ→≡ ~)
-~ᵗ→≡ (duplicate ~)    = cong duplicate (~ᵗ→≡ ~)
-~ᵗ→≡ (new ~₁ ~₂)      = cong₂ new      (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ (read ~₁ ~₂)     = cong₂ read     (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
-~ᵗ→≡ (write ~₁ ~₂ ~₃) = cong₃ write    (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂) (~ᵗ→≡ ~₃)
-~ᵗ→≡ (free ~)         = cong free      (~ᵗ→≡ ~)
-
 ~ᵗ-refl : ren ρ t ~ᵗ[ ρ ] t
 ~ᵗ-refl {t = ` x}         = var x refl
 ~ᵗ-refl {t = lam p _}     = lam p ~ᵗ-refl
@@ -153,6 +134,26 @@ data _~ᵗ[_]_ {n m} {Γ : Con n} {Δ : Con m} : Γ ⊢ A → Ren Γ Δ → Δ �
 ~ᵗ-refl {t = write _ _ _} = write ~ᵗ-refl ~ᵗ-refl ~ᵗ-refl
 ~ᵗ-refl {t = free _}      = free ~ᵗ-refl
 
+~ᵗ→≡ : t ~ᵗ[ ρ ] t′ → t ≡ ren ρ t′
+~ᵗ→≡ (var x′ refl)    = refl
+~ᵗ→≡ (lam p ~)        = cong (lam p) (~ᵗ→≡ ~)
+~ᵗ→≡ (~₁ ∘ ~₂)        = cong₂ _∘_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ zero             = refl
+~ᵗ→≡ (suc ~)          = cong suc (~ᵗ→≡ ~)
+~ᵗ→≡ star             = refl
+~ᵗ→≡ (let⋆[ ~₁ ] ~₂)  = cong₂ let⋆[_]_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ (! ~)            = cong !_        (~ᵗ→≡ ~)
+~ᵗ→≡ (let![ ~₁ ] ~₂)  = cong₂ let![_]_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ ⟨ ~₁ , ~₂ ⟩      = cong₂ ⟨_,_⟩    (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ (let⊗[ ~₁ ] ~₂)  = cong₂ let⊗[_]_ (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ (linearly ~)     = cong linearly  (~ᵗ→≡ ~)
+~ᵗ→≡ (consume ~)      = cong consume   (~ᵗ→≡ ~)
+~ᵗ→≡ (duplicate ~)    = cong duplicate (~ᵗ→≡ ~)
+~ᵗ→≡ (new ~₁ ~₂)      = cong₂ new      (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ (read ~₁ ~₂)     = cong₂ read     (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂)
+~ᵗ→≡ (write ~₁ ~₂ ~₃) = cong₃ write    (~ᵗ→≡ ~₁) (~ᵗ→≡ ~₂) (~ᵗ→≡ ~₃)
+~ᵗ→≡ (free ~)         = cong free      (~ᵗ→≡ ~)
+
 ≡→~ᵗ : t ≡ ren ρ t′ → t ~ᵗ[ ρ ] t′
 ≡→~ᵗ refl = ~ᵗ-refl
 
@@ -160,27 +161,20 @@ data _~ᵗ[_]_ {n m} {Γ : Con n} {Δ : Con m} : Γ ⊢ A → Ren Γ Δ → Δ �
 -- Equality of values up to weakening
 
 infix 5 _~ᵛ[_]_
-_~ᵛ[_]_ : ∀ {n m} {Γ : Con n} {Δ : Con m}
+_~ᵛ[_]_ : {Γ : Con n} {Δ : Con m}
         → Γ ⊢ᵥ A → Ren Γ Δ
         → Δ ⊢ᵥ A → Set ℓ
 (t , v) ~ᵛ[ ρ ] (t′ , v′) = t ~ᵗ[ ρ ] t′
 
-substValue : ∀ {n m}
-             {Γ : Con n} {Δ : Con m}
-             {ρ : Ren Γ Δ}
-             {t : Γ ⊢ A} {t′ : Δ ⊢ A}
-           → t ~ᵗ[ ρ ] t′ → Value t → Value t′
+substValue : t ~ᵗ[ ρ ] t′ → Value t → Value t′
 substValue (lam p ~)     (lam p t) = lam p _
 substValue zero          zero = zero
 substValue (suc ~)       (suc v) = suc (substValue ~ v)
 substValue star          star  = star
 substValue (! ~)         (! v) = ! substValue ~ v
 substValue ⟨ ~₁ , ~₂ ⟩   ⟨ v₁ , v₂ ⟩ = ⟨ substValue ~₁ v₁ , substValue ~₂ v₂ ⟩
-
--- substValue : {}
---              ⦅ v ⦆ᵛ ~ᵗ[ ρ ] t
---            → t ≡ ⦅ v′ ⦆ᵛ
--- substValue {t = t} ~ = {!t ~ !}
+substValue (var x refl)  (ref _) = ref x
+substValue (var x refl)  (lin _) = lin x
 
 private
   variable
@@ -189,22 +183,14 @@ private
 ~ᵗ→~ᵛ : ⦅ v ⦆ᵛ ~ᵗ[ ρ ] ⦅ v′ ⦆ᵛ → v ~ᵛ[ ρ ] v′
 ~ᵗ→~ᵛ ~ = ~
 
-open import Relation.Binary.PropositionalEquality using (cong-app)
+~ᵛ-refl : (v : Γ ⊢ᵥ A) → renᵛ ρ v ~ᵛ[ ρ ] v
+~ᵛ-refl _ = ~ᵗ-refl
 
-~ᵛ→≡ : v ~ᵛ[ ρ ] v′ → v ≡ renᵛ ρ v′
-~ᵛ→≡ (var x refl) = {! cong-app _,_  !}
-~ᵛ→≡ (lam p ~) = {!   !}
-~ᵛ→≡ zero = {!   !}
-~ᵛ→≡ (suc ~) = {!   !}
-~ᵛ→≡ star = {!   !}
-~ᵛ→≡ (! ~) = {!   !}
-~ᵛ→≡ ⟨ ~ , ~₁ ⟩ = {!   !} -- refl
-
-~ᵛ-refl : renᵛ ρ v ~ᵛ[ ρ ] v
-~ᵛ-refl {v = v , value-v} = {!   !}
+postulate
+  ~ᵛ→≡ : v ~ᵛ[ ρ ] v′ → v ≡ renᵛ ρ v′
 
 ≡→∼ᵛ : v ≡ renᵛ ρ v′ → v ~ᵛ[ ρ ] v′
-≡→∼ᵛ refl = {! ~ᵛ-refl !}
+≡→∼ᵛ {v′} refl = ~ᵛ-refl v′
 
 ------------------------------------------------------------------------
 -- Elimator equality up to weakening
@@ -278,7 +264,7 @@ mutual
             → write₁ₑ t₁ t₂ E ~ᵉ[ ρ ] write₁ₑ t₁′ t₂′ E′
     write₂ₑ : ∀ {v}
             → ren E t₁         ~ᵗ[ ρ ] ren E′ t₁′
-            → write₂ₑ t₁ v E  ~ᵉ[ ρ ] write₂ₑ t₁ v E′
+            → write₂ₑ t₁ v E  ~ᵉ[ ρ ] write₂ₑ t₁′ v E′
     write₃ₑ : ∀ {i v}
             → write₃ₑ i v ~ᵉ[ ρ ] write₃ₑ i v
 
@@ -288,32 +274,13 @@ private
   variable
     e e′ : Elim _ _ _
 
-~ᵉ→≡ : e ~ᵉ[ ρ ] e′
-     → e ≡ renᵉ ρ e′
-~ᵉ→≡ {ρ = ρ} {e′ = -∘ₑ_ _ E′} (-∘ₑ_ {E = E} ~) = {! ρ !}
-~ᵉ→≡ (~ ∘ₑ-) = {!   !}
-~ᵉ→≡ sucₑ = refl
-~ᵉ→≡ !-ₑ = refl
-~ᵉ→≡ ⟨-, x ⟩ₑ = {!   !}
-~ᵉ→≡ ⟨ x ,-⟩ₑ = {!   !}
-~ᵉ→≡ (let⋆[-]ₑ x) = {!   !}
-~ᵉ→≡ (let![-]ₑ x) = {!   !}
-~ᵉ→≡ (let⊗[-]ₑ x) = {!   !}
-~ᵉ→≡ linearlyₑ = refl
-~ᵉ→≡ consumeₑ = refl
-~ᵉ→≡ duplicateₑ = refl
-~ᵉ→≡ (new₁ₑ x) = {!   !}
-~ᵉ→≡ new₂ₑ = refl
-~ᵉ→≡ (read₁ₑ x) = {!   !}
-~ᵉ→≡ read₂ₑ = refl
-~ᵉ→≡ (write₁ₑ x x₁) = {!   !}
-~ᵉ→≡ (write₂ₑ x) = {!   !}
-~ᵉ→≡ write₃ₑ = refl
-~ᵉ→≡ freeₑ = refl
+postulate
+  ~ᵉ→≡ : e ~ᵉ[ ρ ] e′ → e ≡ renᵉ ρ e′
+  ~ᵉ-refl : renᵉ ρ e ~ᵉ[ ρ ] e
 
 ≡→~ᵉ : e ≡ renᵉ ρ e′
-     → e ~ᵉ[ ρ ] e′
-≡→~ᵉ = {!   !}
+    → e ~ᵉ[ ρ ] e′
+≡→~ᵉ refl = ~ᵉ-refl
 
 ~ᵉ→∣≡∣ : {ρ : Ren Γ Γ′} {e : Elim Γ A B} {e′ : Elim Γ′ A B}
        → e ~ᵉ[ ρ ] e′
@@ -354,26 +321,31 @@ data _~S[_]_ {n m} {Γ : Con n} {Δ : Con m}
       →     S ~S[ ρ ]      S′
       → e ∙ S ~S[ ρ ] e′ ∙ S′
 
-~S→≡ : {S : Stack Γ A B} {S′ : Stack Γ′ A B}
-       {ρ : Ren Γ Γ′}
-     → S ~S[ ρ ] S′
-     → S ≡ renˢ ρ S′
-~S→≡ = {!!}
-
-≡→~S : {S : Stack Γ A B} {S′ : Stack Γ′ A B}
-       {ρ : Ren Γ Γ′}
-     → S ≡ renˢ ρ S′
-     → S ~S[ ρ ] S′
-≡→~S = {!!}
-
 private
   variable
     S S′ : Stack _ _ _
 
+~S-refl : renˢ ρ S ~S[ ρ ] S
+~S-refl {S = ε} = ε
+~S-refl {S = e ∙ S} = ~ᵉ-refl ∙ ~S-refl
+
+~S→≡ : S ~S[ ρ ] S′
+     → S ≡ renˢ ρ S′
+~S→≡ ε = refl
+~S→≡ (~e ∙ ~S) = cong₂ _∙_ (~ᵉ→≡ ~e) (~S→≡ ~S)
+
+≡→~S : S ≡ renˢ ρ S′
+     → S ~S[ ρ ] S′
+≡→~S refl = ~S-refl
+
 ~S→∣≡∣ : S ~S[ ρ ] S′
        → ∣ S ∣ ≡ ∣ S′ ∣
 ~S→∣≡∣ ε = refl
-~S→∣≡∣ (e~e ∙ S~S) = cong₂ _·_ (~S→∣≡∣ S~S) (~ᵉ→∣≡∣ e~e)
+~S→∣≡∣ {S = e ∙ S} {S′ = e′ ∙ S′} (e~e ∙ S~S) with is-linearlyₑ e | is-linearlyₑ e′
+... | true  | true  = refl
+... | true  | false = {!   !}
+... | false | true  = {!   !}
+... | false | false = cong₂ _·_ (~S→∣≡∣ S~S) (~ᵉ→∣≡∣ e~e)
 
 ------------------------------------------------------------------------
 -- Heap object equality up to weakening
@@ -393,32 +365,34 @@ data _~ᵒ[_]_ : HeapObject Γₚ A → Ren Γₚ Γₘ → HeapObject Γₘ A �
   ↯     : (HeapObject Γ (A) ∋ ↯) ~ᵒ[ ρ ] ↯
 
 ------------------------------------------------------------------------
--- Heap equality up to weakening
+-- Heap equality up to renaming
 
--- data _~ʰ[_]_ : Heap Γₚ → Ren Γₚ Γₘ → Heap Γₘ → Set ℓ where
---   ~ʰ-nil  : ∀ {ρ} → ε ~ʰ[ ρ ] ε
+data DeadOrShared (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ) (xₚ : Γₚ ∋ᶜ A) : Set ℓ where
+  shared[_⨾_⨾_]↦ₚ_↦ₘ_
+    : (xₘ : Γₘ ∋ᶜ A)
+    → renVar ρ xₘ ≡ xₚ
+    → {oₘ : HeapObject Γₘ A}
+    → {oₚ : HeapObject Γₚ A}
+    → renᵒ ρ oₘ ≡ oₚ
+    → (lₚ : Hₚ ⊢ xₚ ↦[ p ] oₚ)
+    → (lₘ : Hₘ ⊢ xₘ ↦[ p ] oₘ)
+    → DeadOrShared Hₚ ρ Hₘ xₚ
 
---   ~ʰ-cons : {Hₚ : Heap Γₚ} {Hₘ : Heap Γₘ} {ρ : Ren Γₚ Γₘ}
---             {oₚ : HeapObject Γₚ A} {oₘ : HeapObject Γₘ A}
---           → oₚ ≡ renᵒ ρ oₘ
---           → {σ : Ren (Γₚ ∙ A) (Γₘ ∙ A)}
---           → σ ≡ liftRen ρ
---           → Hₚ            ~ʰ[ ρ ] Hₘ
---           → Hₚ ∙[ p ]ₕ oₚ ~ʰ[ σ ] Hₘ ∙[ p ]ₕ oₘ
+  dead
+    : A ≡ Arr
+    → (l𝟘 : Hₚ ⊢ xₚ ↦[ 𝟘 ])
+    → (∄xₘ : ∀ xₘ → renVar ρ xₘ ≢ xₚ)
+    → DeadOrShared Hₚ ρ Hₘ xₚ
 
---   ~ʰ-copy : {Hₚ Hₚ′ : Heap Γₚ} {Hₘ Hₘ′ : Heap Γₘ} {ρ : Ren Γₚ Γₘ}
---             (x : Γₘ ∋ᶜ Arr)
---             (lₚ : Hₚ ⊢ renVar ρ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ Hₚ′)
---             (lₘ : Hₘ ⊢ x ≔ xs′ ⨾ Hₘ′)
---           → {σ : Ren (Γₚ ∙ ref) Γₘ}
---           → σ ≡ remapRen x ρ
---           → Hₚ                    ~ʰ[ ρ ] Hₘ
---           → Hₚ′ ∙[ 𝟙 ]ₕ array xs′ ~ʰ[ σ ] Hₘ′
+pattern shared↦ₚ_↦ₘ_ lₚ lₘ = shared[_⨾_⨾_]↦ₚ_↦ₘ_ _ refl refl lₚ lₘ
+pattern shared[_]↦ₚ_↦ₘ_ xₘ lₚ lₘ = shared[_⨾_⨾_]↦ₚ_↦ₘ_ xₘ refl refl lₚ lₘ
 
--- infixl 15 _copy:_from:_with:_
--- pattern εₕ = ~ʰ-nil {ρ = ε}
--- pattern _∙ₕ ~ = ~ʰ-cons refl refl ~
--- pattern _copy:_from:_with:_ ~ x lₚ lₘ = ~ʰ-copy x lₚ lₘ refl ~
+record _~ʰ[_]_ (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ) : Set ℓ where
+  constructor upToRen
+  field
+    classify : (xₚ : Γₚ ∋ᶜ A) → DeadOrShared Hₚ ρ Hₘ xₚ
+
+open _~ʰ[_]_
 
 -- module _ where
 --   open Data.Vec
@@ -459,122 +433,19 @@ data _~ᵒ[_]_ : HeapObject Γₚ A → Ren Γₚ Γₘ → HeapObject Γₘ A �
 ------------------------------------------------------------------------
 -- Properties of heap equality
 
--- ~ʰ-refl : H ~ʰ[ idRen ] H
--- ~ʰ-refl {H = ε} = εₕ
--- ~ʰ-refl {H = H ∙[ p ]ₕ o} = ~ʰ-cons (sym (renᵒ-id o)) refl (~ʰ-refl {H = H})
-
--- •-~ʰ : H ~ʰ[ ρ ] H′ → H′ ~ʰ[ σ ] H″
---      → H ~ʰ[ ρ • σ ] H″
--- •-~ʰ {ρ = ε} {σ = ε} ~ ~ʰ-nil = ~
--- •-~ʰ ~₁ (~₂ ∙ₕ) = •-~ʰ ~₁ {!!}
--- •-~ʰ ~₁ (~ʰ-copy x lₚ lₘ x₁ ~₂) = {!!}
-
-•-remap-id : {ρ : Ren Γ (Δ ∙ A)}
-           → {x : Δ ∋ᶜ A}
-           → ρ • remapRen x idRen ≡ {! remapRen ? x !}
-           --             ^^^^^
-           --            Ren Δ Θ
-           --    ^^^^^^^^^^^^^^^^
-           --      Ren (Δ ∙ A) Θ
-           -- ^^^^^^^^^^^^^^^^^^^
-           --      Ren Γ Θ
-•-remap-id {ρ = ρ} = {!!}
-
--- -- ~ʰ[]-trans : H₁ ~ʰ[ ρ ] H₂
--- --            → H₂ ~ʰ[ σ ] H₃
--- --            → H₁ ~ʰ[ ρ • σ ] H₃
--- -- ~ʰ[]-trans = {!!}
-
--- -- update-~ʰ[] : {ρ : Ren Γₚ Γₘ}
--- --               {Hₚ Hₚ′ : Heap Γₚ} {Hₘ Hₘ′ : Heap Γₘ}
--- --               {x : Γₘ ∋ᶜ A}
--- --               {oₚ : HeapObject Γₚ A} {oₘ : HeapObject Γₘ A}
--- --             → Hₚ ~ʰ[ ρ ] Hₘ
--- --             → Hₚ ⊢ renVar ρ x ↦[ q ] oₚ ⨾ Hₚ′
--- --             → Hₘ ⊢         x ↦[ q ] oₘ ⨾ Hₘ′
--- --             → Hₚ′ ~ʰ[ ρ ] Hₘ′
--- -- update-~ʰ[] (H~H ∙array𝟘) dₚ dₘ = {!!}
--- -- update-~ʰ[] (H~H ∙ x) dₚ dₘ = {!!}
-
--- -- ~ʰ[]-lookup : {Hₚ : Heap Γₚ} {Hₘ : Heap Γₘ} {ρ : Ren Γₚ Γₘ}
--- --               {xₚ : Γₚ ∋ᶜ A} {xₘ : Γₘ ∋ᶜ A}
--- --               {oₚ : HeapObject Γₚ A} {oₘ : HeapObject Γₘ A}
--- --             → Hₚ ~ʰ[ ρ ] Hₘ
--- --             → xₚ ≡ renVar ρ xₘ
--- --             → oₚ ~ᵒ[ ρ ] oₘ
--- --             → Hₚ ⊢ xₚ ↦ oₚ
--- --             → Hₘ ⊢ xₘ ↦ oₘ
--- -- ~ʰ[]-lookup                                      (H~H ∙array𝟘) refl o~o (there {o = oₚ} d) = ~ʰ[]-lookup H~H refl {!o~o!} d
--- -- ~ʰ[]-lookup {Hₘ = Hₘ ∙[ p ] oₘ′} {xₘ = here}     (H~H ∙ o~o′)  x≡x  o~o here               = {!!}
--- -- ~ʰ[]-lookup {Hₘ = Hₘ ∙[ p ] oₘ′} {xₘ = there xₚ} (H~H ∙ o~o′)  x≡x  o~o (there d)          = {!!}
-
--- -- ~ʰ[]-lookup[] : {Hₚ Hₚ′ : Heap Γₚ} {Hₘ Hₘ′ : Heap Γₘ} {ρ : Ren Γₚ Γₘ}
--- --                 {xₚ : Γₚ ∋ᶜ A} {xₘ : Γₘ ∋ᶜ A}
--- --                 {oₚ : HeapObject Γₚ A} {oₘ : HeapObject Γₘ A}
--- --               → Hₚ ~ʰ[ ρ ] Hₘ
--- --               → xₚ ≡ renVar ρ xₘ
--- --               → oₚ ~ᵒ[ ρ ] oₘ
--- --               → Hₚ ⊢ xₚ ↦[ p ] oₚ ⨾ Hₚ′
--- --               → Hₘ ⊢ xₘ ↦[ p ] oₘ ⨾ Hₘ′
--- -- ~ʰ[]-lookup[] {Γₚ = Γₚ ∙ ref} (Hₚ~Hₘ ∙array𝟘)         refl x≡x (there d) = ~ʰ[]-lookup[] Hₚ~Hₘ refl {!!} d
--- -- ~ʰ[]-lookup[] {Hₘ′ = Hₘ′ ∙[ x ] x₁} {xₘ = here} (Hₚ~Hₘ ∙ o~o′) refl o~o (here p-q≡r) = {!here p-q≡r!}
--- -- ~ʰ[]-lookup[] {Γₚ = Γₚ ∙ _} {xₘ = there x} (Hₚ~Hₘ ∙ o~o′) refl o~o (there d) = {!!}
-
--- -- ~ᵛ• : {ρ : Ren Γ Γ′} {E′ : Ren Γ′ Δ′}
--- --       {v  : Γ  ⊢ᵥ A}
--- --       {v′ : Δ′ ⊢ᵥ A}
--- --     → v ~ᵛ[ ρ      ] renᵛ E′ v′
--- --     → v ~ᵛ[ ρ • E′ ] v′
--- -- ~ᵛ• {v = lam p t}     {lam .p t′}     (lam .p ~)  = lam p {!t~t!}
--- -- ~ᵛ• {v = num n}       {num .n}        (num .n)    = num n
--- -- ~ᵛ• {v = star}        {star}          star        = star
--- -- ~ᵛ• {v = ! v}         { ! v′}         (! ~)       = ! ~ᵛ• ~
--- -- ~ᵛ• {v = ⟨ v₁ , v₂ ⟩} {⟨ v₁′ , v₂′ ⟩} ⟨ ~₁ , ~₂ ⟩ = ⟨ ~ᵛ• ~₁ , ~ᵛ• ~₂ ⟩
--- -- ~ᵛ• {v = ref x}       {ref x′}        (ref ~)   = {!x≡x!}
-
--- -- ap~ᵛstep : {ρ : Ren Γ Γ′}
--- --            {v  : Δ  ⊢ᵥ A} {E  : Ren Γ Δ}
--- --            {v′ : Γ′ ⊢ᵥ A}
--- --          → renᵛ E v        ~ᵛ[      ρ ] v′
--- --          → renᵛ (step {A = A} E) v ~ᵛ[ step {A = A} ρ ] v′
--- -- ap~ᵛstep {v′ = lam p x} v~v = {!v~v!}
--- -- ap~ᵛstep {v′ = num x} v~v = {!!}
--- -- ap~ᵛstep {v′ = star} v~v = {!!}
--- -- ap~ᵛstep {v′ = ! v′} v~v = {!!}
--- -- ap~ᵛstep {v′ = ⟨ v′ , v′₁ ⟩} v~v = {!!}
--- -- ap~ᵛstep {v′ = ref x} v~v = {!!}
-
--- ap~ᵒstep : {ρ : Ren Γ Γ′}
---            {o : HeapObject Γ A} {o′ : HeapObject Γ′ A}
---          →               o ~ᵒ[      ρ ] o′
---          → renᵒ (step {A = A} id) o ~ᵒ[ step {A = A} ρ ] o′
--- ap~ᵒstep (value v~v) = value {! ap~ᵛstep v~v !}
--- ap~ᵒstep array       = array
--- ap~ᵒstep lin         = lin
--- ap~ᵒstep ↯           = ↯
-
--- ~ʰ[]-lookup[]′ (H~H ∙array𝟘) refl (there d) with ~ʰ[]-lookup[]′ H~H refl d
--- ... | o′ , o~o , d = o′ , {!!} , {!h o~o!} , {!!}
--- ~ʰ[]-lookup[]′ {xₘ = here} (H~H ∙ o~o′) refl (here p-q≡r) = {!here p-q≡r!}
--- ~ʰ[]-lookup[]′ {Γₚ = Γₚ ∙ _} {xₘ = there x} (H~H ∙ o~o′) refl (there d) = {!!}
-
--- FIXME: It should be possible to write ρ explicitly, without an existential
--- copy-on-write→in-place : {Γ : Con n} {H H′ : Heap Γ} {x : Γ ∋ᶜ Arr}
---                        → ∀ {size} → {xs : Vec Nat size} {i : Fin size} {v : Nat}
---                        → H ⊢ x ↦[ p ] array xs ⨾ H′
---                        → ∃ λ H″ → H ⊢ x ≔ (xs [ i ]≔ v) ⨾ H″
---                                 × H′ ∙[ p ]ₕ array (xs [ i ]≔ v) ~ʰ[ remapRen idRen x ] H″
--- copy-on-write→in-place (vz {p} {q} {r} {H} p-q≡r array≡ren-o) =
---   case renᵒ-array (sym array≡ren-o) of λ { refl →
---   H ∙[ p ]ₕ array (_ [ _ ]≔ _) , vz ,
---   ~ʰ-refl copy: vz from: vz p-q≡r array≡ren-o with: vz
---   }
--- copy-on-write→in-place {i} {v} (vs↦′ l array≡ren-o) =
---   case renᵒ-array (sym array≡ren-o) of λ { refl →
---   case copy-on-write→in-place {i = i} {v} l of λ { (H″ , update , ~) →
---   {!!} ∙[ {!!} ]ₕ {!!} , vs update , {!!}
---   }
---   }
+~ʰ-refl : H ~ʰ[ idRen ] H
+~ʰ-refl {H = ε} .classify ()
+~ʰ-refl {H = H ∙[ p ]ₕ o} .classify vz =
+  shared[
+    vz ⨾
+    renVar-id ⨾
+    renᵒ-id (ren1ᵒ o)
+  ]↦ₚ vz[] p-𝟘≡p
+   ↦ₘ vz[] p-𝟘≡p
+~ʰ-refl {H = H ∙[ p ]ₕ o} .classify (vs x) with ~ʰ-refl {H = H} .classify x
+... | shared[ xₘ ⨾ refl ⨾ refl ]↦ₚ lₚ ↦ₘ lₘ =
+  shared[ vs xₘ ⨾ renVar-step idRen xₘ ⨾ sym (renᵒ-interchange idRen _) ]↦ₚ vs[] lₚ ↦ₘ vs[] lₘ
+... | dead refl l𝟘 ∄xₘ = ⊥-elim (∄xₘ x renVar-id)
 
 update-heap : {Γ : Con m} {H : Heap Γ} {x : Γ ∋ᶜ Arr}
          → ∀ {size} → {xs : Vec Nat size}
@@ -597,45 +468,17 @@ lookup-𝟘 : H ⊢ x ↦[ p - q ] o ⨾ H′
 lookup-𝟘 (vz[ ren-o≡ ] p-q≡r) = vz[ ren-o≡ ] p-𝟘≡p
 lookup-𝟘 (vs[ ren-o≡ ] l) = vs[ ren-o≡ ] lookup-𝟘 l
 
-data DeadOrAlive (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ) (xₚ : Γₚ ∋ᶜ A) : Set ℓ where
-  alive[_⨾_⨾_]↦ₚ_↦ₘ_
-    : (xₘ : Γₘ ∋ᶜ A)
-    → renVar ρ xₘ ≡ xₚ
-    → {oₘ : HeapObject Γₘ A}
-    → {oₚ : HeapObject Γₚ A}
-    → renᵒ ρ oₘ ≡ oₚ
-    → (lₚ : Hₚ ⊢ xₚ ↦[ p ] oₚ)
-    → (lₘ : Hₘ ⊢ xₘ ↦[ p ] oₘ)
-    → DeadOrAlive Hₚ ρ Hₘ xₚ
-
-  dead
-    : A ≡ Arr
-    → (l𝟘 : Hₚ ⊢ xₚ ↦[ 𝟘 ])
-    → (∄xₘ : ∀ xₘ → renVar ρ xₘ ≢ xₚ)
-    → DeadOrAlive Hₚ ρ Hₘ xₚ
-
-pattern alive↦ₚ_↦ₘ_ lₚ lₘ = alive[_⨾_⨾_]↦ₚ_↦ₘ_ _ refl refl lₚ lₘ
-pattern alive[_]↦ₚ_↦ₘ_ xₘ lₚ lₘ = alive[_⨾_⨾_]↦ₚ_↦ₘ_ xₘ refl refl lₚ lₘ
-
--- Converted from a definition to a record to prevent Agda from eta-expansion
-record _~ʰ[_]_ (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ) : Set ℓ where
-  constructor upToRen
-  field
-    classify : (xₚ : Γₚ ∋ᶜ A) → DeadOrAlive Hₚ ρ Hₘ xₚ
-
-open _~ʰ[_]_
-
 ~ʰ′-extend : {Γₚ : Con n} {Γₘ : Con m}
              {Hₚ : Heap Γₚ} {Hₘ : Heap Γₘ}
            → {oₘ : HeapObject Γₘ A}
            → {ρ : Ren Γₚ Γₘ}
            → Hₚ                   ~ʰ[ ρ ] Hₘ
            → Hₚ ∙[ p ]ₕ renᵒ ρ oₘ ~ʰ[ liftRen ρ ] Hₘ ∙[ p ]ₕ oₘ
-~ʰ′-extend ~ .classify vz = alive↦ₚ vz[ renᵒ-interchange _ _ ] p-𝟘≡p ↦ₘ vz[] p-𝟘≡p
+~ʰ′-extend ~ .classify vz = shared↦ₚ vz[ renᵒ-interchange _ _ ] p-𝟘≡p ↦ₘ vz[] p-𝟘≡p
 ~ʰ′-extend {ρ = ρ} ~ .classify (vs xₚ) =
   case ~ .classify xₚ of λ where
-    (alive[ xₘ ]↦ₚ lₚ ↦ₘ lₘ) →
-      alive[ vs xₘ
+    (shared[ xₘ ]↦ₚ lₚ ↦ₘ lₘ) →
+      shared[ vs xₘ
            ⨾ renVar-lift-vs ρ xₘ
            ⨾ sym (renᵒ-interchange ρ _)
            ]↦ₚ vs[] lₚ
@@ -648,93 +491,6 @@ open _~ʰ[_]_
           case renVar-unlift-vs _ xₘ xₚ [lift-ρ]xₘ≡vs-xₚ of λ { (xₘ′ , refl , ρxₘ′≡xₚ) →
           ∄xₘ xₘ′ ρxₘ′≡xₚ
           })
-
-~ʰ-lookup : {Hₚ : Heap Γₚ} {Hₘ : Heap Γₘ}
-            {xₘ : Γₘ ∋ᶜ A} {xₚ : Γₚ ∋ᶜ A}
-            {ρ : Ren Γₚ Γₘ}
-          → Hₚ ~ʰ[ ρ ] Hₘ
-          → renVar ρ xₘ ≡ xₚ
-          → {oₘ : HeapObject Γₘ A}
-          → {oₚ : HeapObject Γₚ A}
-          → renᵒ ρ oₘ ≡ oₚ
-          → (A ≢ Arr ⊎ p ≢ 𝟘)
-          → Hₚ ⊢ xₚ ↦[ p ] oₚ
-          → Hₘ ⊢ xₘ ↦[ p ] oₘ
-~ʰ-lookup {xₚ = xₚ} {ρ = ρ} ~ ρxₘ≡ ρoₘ≡ A≢Arr⊎p≢𝟘 l = case ~ .classify xₚ of λ where
-  (alive[ xₘ ]↦ₚ lₚ ↦ₘ lₘ) →
-    case renVar-inj ρ _ xₘ ρxₘ≡ of λ { refl →
-    case lookup-det l lₚ of λ { (refl , refl , refl) →
-    case renᵒ-inj ρ _ _ ρoₘ≡ of λ { refl →
-    lₘ
-    }
-    }
-    }
-  (dead A≡Arr (o , l𝟘) ∄xₘ) →
-    case A≢Arr⊎p≢𝟘 of λ where
-      (inj₁ A≢Arr) →
-        ⊥-elim (A≢Arr A≡Arr)
-      (inj₂ p≢𝟘) →
-        let p≡𝟘 , _ = lookup-det l l𝟘
-        in ⊥-elim (p≢𝟘 p≡𝟘)
-
-
-~ʰ-post-lookup : {Γₚ : Con n} {Γₘ : Con m}
-                 {ρ : Ren Γₚ Γₘ}
-                 {Hₚ Hₚ′ : Heap Γₚ} {Hₘ Hₘ′ : Heap Γₘ}
-                 {xₘ : Γₘ ∋ᶜ A}
-                 {oₘ : HeapObject Γₘ A}
-               → Hₚ ~ʰ[ ρ ] Hₘ
-               → Hₚ ⊢ renVar ρ xₘ ↦[ p - q ] renᵒ ρ oₘ ⨾ Hₚ′
-               → Hₘ ⊢          xₘ ↦[ p - q ]        oₘ ⨾ Hₘ′
-               → Hₚ′ ~ʰ[ ρ ] Hₘ′
-~ʰ-post-lookup {ρ = ρ} {xₘ = xₘ} ~ lₚ lₘ .classify xₚ =
-  case dec-var (renVar ρ xₘ) xₚ of λ where
-    (yes (refl , refl)) → case ~ .classify xₚ of λ where
-      (alive[ xₘ ⨾ eq ⨾ eq′ ]↦ₚ lₚ ↦ₘ lₘ) → alive[ xₘ ⨾ eq ⨾ eq′ ]↦ₚ {!lₚ!} ↦ₘ {!!}
-      (dead refl l𝟘 ∄xₘ) → {!!}
-    (no ≢) → case ~ .classify xₚ of λ where
-      (alive[ xₘ ⨾ eq ⨾ eq′ ]↦ₚ lₚ ↦ₘ lₘ) → alive[ xₘ ⨾ eq ⨾ eq′ ]↦ₚ {!lₚ!} ↦ₘ {!!}
-      (dead refl l𝟘 ∄xₘ) → {!!}
--- case ~ xₚ of λ where
---   (alive↦ₚ lₚ ↦ₘ lₘ) → {!!}
---   (dead l𝟘 ∄xₘ) → {!!}
-
-~ʰ-lookup′ : ⦃ Has-well-behaved-zero M semiring-with-meet ⦄
-           → {Γₚ : Con n} {Γₘ : Con m}
-             {ρ : Ren Γₚ Γₘ}
-             {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
-             {xₚ : Γₚ ∋ᶜ A}
-             {oₚ : HeapObject Γₚ A}
-           → Hₚ ~ʰ[ ρ ] Hₘ
-           → Hₚ ⊢ xₚ ↦[ p - q ] oₚ ⨾ Hₚ′
-           → q ≢ 𝟘
-           → ∃₃ λ (Hₘ′ : Heap Γₘ)
-                  (xₘ : Γₘ ∋ᶜ A)
-                  (oₘ : HeapObject Γₘ A)
-                → (Hₘ ⊢ xₘ ↦[ p - q ] oₘ ⨾ Hₘ′)
-                × xₚ ≡ renVar ρ xₘ
-                × oₚ ≡ renᵒ ρ oₘ
-                × Hₚ′ ~ʰ[ ρ ] Hₘ′
-~ʰ-lookup′ {xₚ = xₚ} ~ l q≢𝟘 = case ~ .classify xₚ of λ where
-  (alive[ xₘ ⨾ refl ⨾ refl ]↦ₚ lₚ ↦ₘ lₘ) →
-    case lookup-det (↦[-]→↦[] l) lₚ of λ { (refl , refl , refl) →
-    case ↦[]→↦[-] (↦[-]→-≡ l .proj₂) lₘ of λ { (Hₘ′ , lₘ′) →
-    Hₘ′ , xₘ , _ , lₘ′ , refl , refl , ~ʰ-post-lookup ~ l lₘ′
-    }
-    }
-  (dead refl (_ , l𝟘) ∄xₘ) →
-    let p≡𝟘 , _ = lookup-det (↦[-]→↦[] l) l𝟘
-        r , p-q≡r = ↦[-]→-≡ l
-    in ⊥-elim (𝟘-q≢p q≢𝟘 (subst (_- _ ≡ r) p≡𝟘 p-q≡r))
-
-post-lookup : p - q ≡ r
-            → H  ⊢ x ↦[ p - q ] o ⨾ H′
-            → H′ ⊢ x ↦[ r ] o
-post-lookup {r = r} p-q≡r (vz[] p-q≡r′) =
-  case -≡-functional p-q≡r p-q≡r′ of λ { refl →
-  vz[] p-𝟘≡p
-  }
-post-lookup p-q≡r (vs[] l) = vs[] post-lookup p-q≡r l
 
 post-lookup-≢ : {p′ : M}
               → Distinct x y
@@ -758,93 +514,185 @@ post-update-≢ _   vz       (vs[] l-y) = vs[] l-y
 post-update-≢ _   (vs l-x) (vz[] _)   = vz[] p-𝟘≡p
 post-update-≢ x≢y (vs l-x) (vs[] l-y) = vs[] post-update-≢ x≢y l-x l-y
 
-copy-on-write→in-place : ⦃ Has-well-behaved-zero M semiring-with-meet ⦄
-                       → {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
-                       → {x : Γₘ ∋ᶜ Arr}
-                       → ∀ {size} → {xs : Vec Nat size}
-                       → Hₚ ~ʰ[ ρ ] Hₘ
-                       → Hₚ ⊢ renVar ρ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ Hₚ′
-                       → (i : Fin size) (v : Nat)
-                       → ∃ λ Hₘ′ → Hₘ ⊢ x ≔ (xs [ i ]≔ v) ⨾ Hₘ′
-                                 × Hₚ′ ∙[ 𝟙 ]ₕ array (xs [ i ]≔ v) ~ʰ[ remapRen x ρ ] Hₘ′
-copy-on-write→in-place {ρ} {x} ~ l i v =
-  case lookup→write l i v of λ { (_ , u) →
-  case update-heap i v (~ʰ-lookup ~ refl refl (inj₂ non-trivial) (lookup-𝟘 l)) of λ { (Hₘ′ , u′) →
-  Hₘ′ , u′ , upToRen λ where
-    vz →
-      alive[ x
-           ⨾ renVar-remap-vz ρ x
-           ⨾ refl
-           ]↦ₚ vz[] p-𝟘≡p
-            ↦ₘ post-update u′
-    (vs xₚ) →
-      case dec-var xₚ (renVar ρ x) of λ where
-        (no ≢) → case ~ .classify xₚ of λ where
-          (alive[ xₘ ⨾ ρxₘ≡xₚ ⨾ ρoₘ≡oₚ ]↦ₚ lₚ ↦ₘ lₘ) →
-            alive[ xₘ
-                 ⨾ renVar-remap-vs ρ xₘ x xₚ ρxₘ≡xₚ
-                    (≢→Distinct xₘ x λ where
-                      (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
-                 ⨾ renᵒ→renᵒ-remap ρ x ρoₘ≡oₚ
-                 ]↦ₚ vs[]
+module _ ⦃ 𝟘-well-behaved : Has-well-behaved-zero M semiring-with-meet ⦄ where
+  ~ʰ-post-lookup : {Γₚ : Con n} {Γₘ : Con m}
+                  {ρ : Ren Γₚ Γₘ}
+                  {Hₚ Hₚ′ : Heap Γₚ} {Hₘ Hₘ′ : Heap Γₘ}
+                  {xₘ : Γₘ ∋ᶜ A}
+                  {oₘ : HeapObject Γₘ A}
+                → Hₚ ~ʰ[ ρ ] Hₘ
+                → Hₚ ⊢ renVar ρ xₘ ↦[ p - q ] renᵒ ρ oₘ ⨾ Hₚ′
+                → Hₘ ⊢          xₘ ↦[ p - q ]        oₘ ⨾ Hₘ′
+                → Hₚ′ ~ʰ[ ρ ] Hₘ′
+  ~ʰ-post-lookup {ρ = ρ} {xₘ = xₘ} ~ lₚ lₘ .classify xₚ =
+    case dec-var (renVar ρ xₘ) xₚ of λ where
+      (yes (refl , refl)) → case ~ .classify xₚ of λ where
+        (shared[ yₘ ⨾ ρyₘ≡ρxₘ ⨾ refl ]↦ₚ yₘ↦ ↦ₘ ρyₘ↦) →
+          case renVar-inj ρ _ _ ρyₘ≡ρxₘ of λ { refl →
+          case ↦[-]→-≡ lₚ of λ { (_ , p-q≡r) →
+          shared↦ₚ post-lookup p-q≡r lₚ ↦ₘ post-lookup p-q≡r lₘ
+          }
+          }
+        (dead refl (_ , l𝟘) ∄xₘ) →
+          case lookup-det𝟘 l𝟘 lₚ of λ { (refl , refl , refl , refl) →
+          dead refl (_ , post-lookup p-𝟘≡p lₚ) ∄xₘ
+          }
+      (no ≢) → case ~ .classify xₚ of λ where
+        (shared[ yₘ ⨾ refl ⨾ refl ]↦ₚ yₘ↦ ↦ₘ ρyₘ↦) →
+          shared↦ₚ post-lookup-≢ (≢→Distinct (renVar ρ xₘ) (renVar ρ yₘ) ≢) lₚ yₘ↦
+                ↦ₘ post-lookup-≢ (≢→Distinct xₘ yₘ (λ where (refl , refl) → ≢ (refl , refl))) lₘ ρyₘ↦
+        (dead refl (_ , l𝟘) ∄xₘ) → dead refl (_ , post-lookup-≢ (≢→Distinct (renVar ρ xₘ) xₚ (λ where (refl , refl) → ∄xₘ xₘ refl) ) lₚ l𝟘) ∄xₘ
+
+  ~ʰ-lookup : {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
+              {ρ : Ren Γₚ Γₘ}
+              {xₘ : Γₘ ∋ᶜ A}
+            → Hₚ ~ʰ[ ρ ] Hₘ
+            → {oₘ : HeapObject Γₘ A}
+            → (A ≢ Arr ⊎ p ≢ 𝟘)
+            → Hₚ ⊢ renVar ρ xₘ ↦[ p - q ] renᵒ ρ oₘ ⨾ Hₚ′
+            → ∃ λ Hₘ′ → Hₘ ⊢ xₘ ↦[ p - q ] oₘ ⨾ Hₘ′
+                      × Hₚ′ ~ʰ[ ρ ] Hₘ′
+  ~ʰ-lookup {ρ} {xₘ} ~ A≢Arr⊎p≢𝟘 l = case ~ .classify (renVar ρ xₘ) of λ where
+    (shared[ xₘ′ ⨾ ρxₘ≡ ⨾ ρoₘ≡ ]↦ₚ lₚ ↦ₘ lₘ) →
+      case renVar-inj ρ _ xₘ ρxₘ≡ of λ { refl →
+      case lookup-det (↦[-]→↦[] l) lₚ of λ { (refl , refl , refl) →
+      case renᵒ-inj ρ _ _ ρoₘ≡ of λ { refl →
+      case ↦[]→↦[-] (↦[-]→-≡ l .proj₂) lₘ of λ { (Hₘ′ , lₘ′) →
+      Hₘ′ , lₘ′ , ~ʰ-post-lookup ~ l lₘ′
+      }
+      }
+      }
+      }
+    (dead A≡Arr (o , l𝟘) ∄xₘ) →
+      case A≢Arr⊎p≢𝟘 of λ where
+        (inj₁ A≢Arr) →
+          ⊥-elim (A≢Arr A≡Arr)
+        (inj₂ p≢𝟘) →
+          let p≡𝟘 , _ = lookup-det (↦[-]→↦[] l) l𝟘
+          in ⊥-elim (p≢𝟘 p≡𝟘)
+
+  ~ʰ-lookup′ : {Γₚ : Con n} {Γₘ : Con m}
+              {ρ : Ren Γₚ Γₘ}
+              {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
+              {xₚ : Γₚ ∋ᶜ A}
+              {oₚ : HeapObject Γₚ A}
+            → Hₚ ~ʰ[ ρ ] Hₘ
+            → Hₚ ⊢ xₚ ↦[ p - q ] oₚ ⨾ Hₚ′
+            → q ≢ 𝟘
+            → ∃₃ λ (Hₘ′ : Heap Γₘ)
+                    (xₘ : Γₘ ∋ᶜ A)
+                    (oₘ : HeapObject Γₘ A)
+                  → (Hₘ ⊢ xₘ ↦[ p - q ] oₘ ⨾ Hₘ′)
+                  × xₚ ≡ renVar ρ xₘ
+                  × oₚ ≡ renᵒ ρ oₘ
+                  × Hₚ′ ~ʰ[ ρ ] Hₘ′
+  ~ʰ-lookup′ {xₚ = xₚ} ~ l q≢𝟘 = case ~ .classify xₚ of λ where
+    (shared[ xₘ ⨾ refl ⨾ refl ]↦ₚ lₚ ↦ₘ lₘ) →
+      case lookup-det (↦[-]→↦[] l) lₚ of λ { (refl , refl , refl) →
+      case ↦[]→↦[-] (↦[-]→-≡ l .proj₂) lₘ of λ { (Hₘ′ , lₘ′) →
+      Hₘ′ , xₘ , _ , lₘ′ , refl , refl , ~ʰ-post-lookup ~ l lₘ′
+      }
+      }
+    (dead refl (_ , l𝟘) ∄xₘ) →
+      let p≡𝟘 , _ = lookup-det (↦[-]→↦[] l) l𝟘
+          r , p-q≡r = ↦[-]→-≡ l
+      in ⊥-elim (𝟘-q≢p q≢𝟘 (subst (_- _ ≡ r) p≡𝟘 p-q≡r))
+
+  copy-on-write→in-place : {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
+                        → {x : Γₘ ∋ᶜ Arr}
+                        → ∀ {size} → {xs : Vec Nat size}
+                        → Hₚ ~ʰ[ ρ ] Hₘ
+                        → Hₚ ⊢ renVar ρ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ Hₚ′
+                        → (i : Fin size) (v : Nat)
+                        → ∃ λ Hₘ′ → Hₘ ⊢ x ≔ (xs [ i ]≔ v) ⨾ Hₘ′
+                                  × Hₚ′ ∙[ 𝟙 ]ₕ array (xs [ i ]≔ v) ~ʰ[ remapRen x ρ ] Hₘ′
+  copy-on-write→in-place {ρ} {x} ~ l i v =
+    case lookup→write l i v of λ { (_ , u) →
+    case ~ʰ-lookup ~ (inj₂ non-trivial) (lookup-𝟘 l) of λ { (_ , l′ , _) →
+    case update-heap i v (↦[-]→↦[] l′) of λ { (Hₘ′ , u′) →
+    Hₘ′ , u′ , upToRen λ where
+      vz →
+        shared[ x
+            ⨾ renVar-remap-vz ρ x
+            ⨾ refl
+            ]↦ₚ vz[] p-𝟘≡p
+              ↦ₘ post-update u′
+      (vs xₚ) →
+        case dec-var xₚ (renVar ρ x) of λ where
+          (no ≢) → case ~ .classify xₚ of λ where
+            (shared[ xₘ ⨾ ρxₘ≡xₚ ⨾ ρoₘ≡oₚ ]↦ₚ lₚ ↦ₘ lₘ) →
+              shared[ xₘ
+                  ⨾ renVar-remap-vs ρ xₘ x xₚ ρxₘ≡xₚ
+                      (≢→Distinct xₘ x λ where
+                        (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
+                  ⨾ {! renᵒ→renᵒ-remap ρ x ρoₘ≡oₚ !}
+                  ]↦ₚ vs[]
+                      post-lookup-≢
+                        (≢→Distinct (renVar ρ x) xₚ λ where (refl , refl) → ≢ (refl , refl))
+                        l lₚ
+                    ↦ₘ
+                      post-update-≢
+                        (≢→Distinct x xₘ λ where (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
+                        u′ lₘ
+            (dead refl (o , xₚ↦[𝟘]) ∄xₘ) →
+              dead
+                refl
+                ( ren1ᵒ o
+                , vs[]
                     post-lookup-≢
                       (≢→Distinct (renVar ρ x) xₚ λ where (refl , refl) → ≢ (refl , refl))
-                      l lₚ
-                  ↦ₘ
-                    post-update-≢
-                      (≢→Distinct x xₘ λ where (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
-                      u′ lₘ
-          (dead refl (o , xₚ↦[𝟘]) ∄xₘ) →
+                      l xₚ↦[𝟘]
+                )
+                (λ xₘ [remap-x-ρ]≡vs-xₚ → ∄xₘ xₘ (renVar-unremap-vs ρ xₘ x xₚ [remap-x-ρ]≡vs-xₚ))
+          (yes (refl , refl)) →
             dead
               refl
-              ( ren1ᵒ o
-              , vs[]
-                  post-lookup-≢
-                    (≢→Distinct (renVar ρ x) xₚ λ where (refl , refl) → ≢ (refl , refl))
-                    l xₚ↦[𝟘]
-              )
-              (λ xₘ [remap-x-ρ]≡vs-xₚ → ∄xₘ xₘ (renVar-unremap-vs ρ xₘ x xₚ [remap-x-ρ]≡vs-xₚ))
-        (yes (refl , refl)) →
-          dead
-            refl
-            (array _ , vs[] post-lookup 𝟙-𝟙≡𝟘 l)
-            (λ xₘ [remap-x-ρ]xₘ≡vs-ρx →
-              ¬Distinct-refl
-                (renVar ρ x)
-                (renVar-unremap-≢ ρ xₘ x (vs renVar ρ x) [remap-x-ρ]xₘ≡vs-ρx))
-  }
-  }
+              (array _ , vs[] post-lookup 𝟙-𝟙≡𝟘 l)
+              (λ xₘ [remap-x-ρ]xₘ≡vs-ρx →
+                ¬Distinct-refl
+                  (renVar ρ x)
+                  (renVar-unremap-≢ ρ xₘ x (vs renVar ρ x) [remap-x-ρ]xₘ≡vs-ρx))
+    }
+    }
+    }
 
-~S-ren1 : S ~S[ ρ ] S′ → ren1ˢ A S ~S[ liftRen ρ ] ren1ˢ A S′
-~S-ren1 {ρ} {S′} S~S = ≡→~S (trans (cong (ren1ˢ _) (~S→≡ S~S)) (ren1ˢ-interchange S′ ρ))
+  ~S-ren1 : S ~S[ ρ ] S′ → ren1ˢ A S ~S[ liftRen ρ ] ren1ˢ A S′
+  ~S-ren1 {ρ} {S′} S~S = ≡→~S (trans (cong (ren1ˢ _) (~S→≡ S~S)) (ren1ˢ-interchange S′ ρ))
 
-private
-  variable
-    Δₚ Δₘ : Con _
-    Hₚ Hₘ : Heap _
-    Sₚ Sₘ : Stack _ _ _
-    tₚ tₘ : _ ⊢ _
-    value-tₚ value-tₘ : Value _
-    Eₚ Eₘ : Ren _ _
+  private
+    variable
+      Δₚ Δₘ : Con _
+      Hₚ Hₘ : Heap _
+      Sₚ Sₘ : Stack _ _ _
+      tₚ tₘ : _ ⊢ _
+      value-tₚ value-tₘ : Value _
+      Eₚ Eₘ : Ren _ _
 
-~ᵗ-subst-value : ren Eₚ tₚ ~ᵗ[ ρ ] ren Eₘ tₘ
-               → Value tₚ
-               → Value tₘ
-~ᵗ-subst-value {Eₚ} {Eₘ} ~ v = unrenValue Eₘ (substValue ~ (renValue Eₚ v))
+  ~ᵗ-sym : ren σ t ~ᵗ[ ρ ] t′
+         → ren ρ t′ ~ᵗ[ σ ] t
+  ~ᵗ-sym ~ = ≡→~ᵗ (sym (~ᵗ→≡ ~))
 
-~ʰ-cons-value : {tₚ : Δₚ ⊢ A} {tₘ : Δₘ ⊢ A}
-              → Hₚ ~ʰ[ ρ ] Hₘ
-              → (t~t : ren Eₚ tₚ ~ᵗ[ ρ ] ren Eₘ tₘ)
-              → (vₚ : Value tₚ)
-              → Sₚ ~S[ ρ ] Sₘ
-              → (Hₚ ∙[ ∣ Sₚ ∣ · p ]ₕ value (tₚ , vₚ) Eₚ)
-                  ~ʰ[ liftRen ρ ]
-                (Hₘ ∙[ ∣ Sₘ ∣ · p ]ₕ value (tₘ , ~ᵗ-subst-value t~t vₚ) Eₘ)
-~ʰ-cons-value ~ʰ ~ᵗ ~S = {!   !}
+  ~ᵗ-subst-value : ren Eₚ tₚ ~ᵗ[ ρ ] ren Eₘ tₘ
+                 → Value tₚ
+                 → Value tₘ
+  ~ᵗ-subst-value {Eₚ} {Eₘ} ~ v = unrenValue Eₘ (substValue ~ (renValue Eₚ v))
 
-    -- let value-u =
-    --     H~H′ = subst₂ (λ ∣S∣ v → Hₚ ∙[ ∣ Sₚ ∣ · p ]ₕ value (uₚ , value-uₚ) {! Eₚ  !} ~ʰ[ liftRen ρ ] _ ∙[ ∣S∣ · p ]ₕ v)
-    --             (~S→∣≡∣ S~S)
-    --             {!   !}
-    --             {! ~ʰ′-extend H~H !}
-    --  in
+  ~ᵗ-subst-¬value : ren Eₚ tₚ ~ᵗ[ ρ ] ren Eₘ tₘ
+                  → ¬ (Value tₚ)
+                  → ¬ (Value tₘ)
+  ~ᵗ-subst-¬value {Eₚ} {Eₘ} ~ ¬value-tₚ value-tₘ = ¬value-tₚ (substValue (~ᵗ-sym ~) (renValue _ (renValue Eₘ value-tₘ)))
+
+  ~ʰ-cons-value : {tₚ : Δₚ ⊢ A} {tₘ : Δₘ ⊢ A}
+                → Hₚ ~ʰ[ ρ ] Hₘ
+                → (t~t : ren Eₚ tₚ ~ᵗ[ ρ ] ren Eₘ tₘ)
+                → (vₚ : Value tₚ)
+                → Sₚ ~S[ ρ ] Sₘ
+                → (Hₚ ∙[ ∣ Sₚ ∣ · p ]ₕ value (tₚ , vₚ) Eₚ)
+                    ~ʰ[ liftRen ρ ]
+                  (Hₘ ∙[ ∣ Sₘ ∣ · p ]ₕ value (tₘ , ~ᵗ-subst-value t~t vₚ) Eₘ)
+  ~ʰ-cons-value {Hₚ} {ρ} {Hₘ} {Eₚ} {Eₘ} {Sₚ} {p} {tₚ} {tₘ} ~ʰ ~ᵗ vₚ ~S =
+    subst₂
+      (λ ∣S∣ v → Hₚ ∙[ ∣ Sₚ ∣ · p ]ₕ v ~ʰ[ liftRen ρ ] Hₘ ∙[ ∣S∣ · p ]ₕ value (tₘ , ~ᵗ-subst-value ~ᵗ vₚ) Eₘ)
+      (~S→∣≡∣ ~S)
+      {!   !}
+      (~ʰ′-extend ~ʰ)
