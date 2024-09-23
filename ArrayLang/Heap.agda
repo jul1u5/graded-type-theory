@@ -19,6 +19,7 @@ open import ArrayLang.Usage 𝕄
 open import Tools.Nat
 open import Tools.Fin
 open import Tools.Product
+open import Tools.Relation
 open import Tools.Function
 open import Tools.PropositionalEquality
 open import Tools.Reasoning.PropositionalEquality

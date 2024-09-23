@@ -185,33 +185,23 @@ renᵒ-array : {xs : Vec Nat n}
            → o ≡ array xs
 renᵒ-array {o = array _} refl = refl
 
-lookup→write : {Γ : Con n} {H H′ : Heap Γ} {x : Γ ∋ᶜ Arr}
-             → ∀ {size} → {xs : Vec Nat size}
-             → H ⊢ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ H′
-             → (i : Fin size) (v : Nat)
-             → ∃ λ H″ → H ⊢ x ≔ (xs [ i ]≔ v) ⨾ H″
-lookup→write {H = H ∙[ p ]ₕ o} {x = vz} (vz[ ren-o≡array ] p-q≡r) i v =
-  case renᵒ-array ren-o≡array of λ { refl →
-  H ∙[ p ]ₕ array (_ [ i ]≔ v) , vz
-  }
-lookup→write {H = H ∙[ p ]ₕ o′} {x = vs x} (vs[ ren-o≡array ] l ) i v =
-  case renᵒ-array ren-o≡array of λ { refl →
-  case lookup→write l i v of λ { (H′ , u) →
-  H′ ∙[ p ]ₕ o′ , vs u
-  }
-  }
-
 ↦[]→↦[-] : p - q ≡ r
          → H ⊢ x ↦[ p ] o
          → ∃ λ H′
              → H ⊢ x ↦[ p - q ] o ⨾ H′
 ↦[]→↦[-] p-q≡r (vz[] _) = _ , vz[] p-q≡r
-↦[]→↦[-] p-q≡r (vs[] l) = case ↦[]→↦[-] p-q≡r l of λ { (_ , l) → _ , (vs[] l) }
+↦[]→↦[-] p-q≡r (vs[] l) =
+  let _ , l = ↦[]→↦[-] p-q≡r l
+   in _ , vs[] l
 
 ↦[-]→↦[] : H ⊢ x ↦[ p - q ] o ⨾ H′
          → H ⊢ x ↦[ p ] o
 ↦[-]→↦[] (vz[] _) = vz[] p-𝟘≡p
 ↦[-]→↦[] (vs[] l) = vs[] ↦[-]→↦[] l
+
+↦[-]→↦ : H ⊢ x ↦[ p - q ] o ⨾ H′
+       → H ⊢ x ↦ o
+↦[-]→↦ l = ↦[]→↦ (_ , l)
 
 ↦[-]→-≡ : H ⊢ x ↦[ p - q ] o ⨾ H′
         → ∃ λ r → p - q ≡ r

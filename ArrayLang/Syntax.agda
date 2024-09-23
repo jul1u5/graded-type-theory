@@ -655,7 +655,7 @@ stepRen-comp ρ (σ ∙[ x∉σ ] x) = cong₂ (λ σ y → σ ∙[ {!  !} ] y) 
 liftRen-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ)
              → liftRen {A = A} ρ • liftRen σ ≡ liftRen (ρ • σ)
 liftRen-comp ρ ε                           = refl
-liftRen-comp (ρ ∙[ x∉ρ ] x) (σ ∙[ y∉σ ] y) = cong₂ (λ η z → η ∙[ {!!} ] z ∙[ {!!} ] vz) {!!} (renVar-lift-vs (ρ ∙ x) y)
+liftRen-comp (ρ ∙[ x∉ρ ] x) (σ ∙[ y∉σ ] y) = cong₂ (λ η z → η ∙[ {!!} ] z ∙[ {!!} ] vz) {!stepRen-comp (ρ ∙ x) σ !} (renVar-lift-vs (ρ ∙ x) y)
 
 ren-comp : (ρ : Ren Γ Δ) (σ : Ren Δ Θ) (t : Θ ⊢ A)
          → ren ρ (ren σ t) ≡ ren (ρ • σ) t

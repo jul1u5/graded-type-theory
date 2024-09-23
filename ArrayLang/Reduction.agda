@@ -73,7 +73,7 @@ mutual
 
     var  : ⦃ Graded ι ⦄
          → (v : Δ ⊢ᵥ A)
-         → H ⊢ renVar E x ↦[- ∣ S ∣ ] value v E′ ⨾ H′
+         → H ⊢ renVar E x ↦[ p - ∣ S ∣ ] value v E′ ⨾ H′
          → ⟪ H  , ` x    , E  , S ⟫
            ⇒[ ι ]
            ⟪ H′ , ⦅ v ⦆ᵛ , E′ , S ⟫

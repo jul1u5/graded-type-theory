@@ -95,12 +95,12 @@ module _ where
     → {s′@(⟪ Hᵤ′ , t′ , E′ , S′ ⟫) : State Γ′ Δ′ A′ B}
     → ⟪ Hᵤ , t , E , S ⟫ ⇒ᵤ ⟪ Hᵤ′ , t′ , E′ , S′ ⟫
     → {Hₚ : Heap Γ}
-      → Hᵤ ~ʰ Hₚ
+    → Hᵤ ~ʰ Hₚ
     → γ ⨾ δ ⨾ η ▸ ⟪ Hₚ , t , E , S ⟫
     → ∃ λ Hₚ′ → ⟪ Hₚ , t , E , S ⟫ ⇒ₚ ⟪ Hₚ′ , t′ , E′ , S′ ⟫ × Hᵤ′ ~ʰ Hₚ′
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (varᵤ v l)       H~H ▸s =
     case ▸↦→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s of λ { (_ , _ , l′) →
-    _ , var v (_ , l′) , ~ʰ-trans H~H (update-~ʰ l′)
+    _ , var v l′ , ~ʰ-trans H~H (update-~ʰ l′)
     }
   ungraded↝pure app₁               H~H ▸s = _ , app₁             , H~H
   ungraded↝pure app₂ₑ              H~H ▸s = _ , app₂ₑ            , H~H ∙ _
@@ -122,35 +122,80 @@ module _ where
   ungraded↝pure linearly₁          H~H ▸s = _ , linearly₁        , H~H ∙ lin
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (linearly₂ v l)    H~H ▸s =
     _ , linearly₂ v (~ʰ-lookup H~H l)    , H~H
-  ungraded↝pure consume₁           H~H ▸s = _ , consume₁                       , H~H
+  ungraded↝pure consume₁           H~H ▸s = _ , consume₁         , H~H
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (consume₂ᵤ l)        H~H ▸s =
     let H-lin , l′ , ∣S∣≡𝟙 = ▸↦lin→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s
      in _ , consume₂ l′ (trans (sym (·-identityʳ _)) ∣S∣≡𝟙) , ~ʰ-trans H~H (update-~ʰ l′)
-  ungraded↝pure duplicate₁      H~H ▸s = _ , duplicate₁                     , H~H
+  ungraded↝pure duplicate₁         H~H ▸s = _ , duplicate₁       , H~H
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (duplicate₂ᵤ l)      H~H ▸s =
     let H-lin , l′ , ∣S∣≡𝟙 = ▸↦lin→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s
      in _ , duplicate₂ l′ (trans (sym (·-identityʳ _)) ∣S∣≡𝟙) , ~ʰ-trans H~H (update-~ʰ l′) ∙ _ ∙ _
-  ungraded↝pure new₁              H~H ▸s = _ , new₁                          , H~H
-  ungraded↝pure (new₂ s t≡s)      H~H ▸s = _ , new₂ s t≡s                    , H~H
+  ungraded↝pure new₁               H~H ▸s = _ , new₁             , H~H
+  ungraded↝pure (new₂ s t≡s)       H~H ▸s = _ , new₂ s t≡s       , H~H
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (new₃ᵤ s l)    H~H ▸s =
     let H-lin , l′ , ∣S∣≡𝟙 = ▸↦lin→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s
      in H-lin ∙[ 𝟙 ]ₕ array _ , new₃ s l′ (trans (sym (·-identityʳ _)) ∣S∣≡𝟙) , ~ʰ-trans H~H (update-~ʰ l′) ∙ _
-  ungraded↝pure read₁              H~H ▸s = _ , read₁                        , H~H
-  ungraded↝pure (read₂ i t≡i)      H~H ▸s = _ , read₂ i t≡i                  , H~H
+  ungraded↝pure read₁              H~H ▸s = _ , read₁            , H~H
+  ungraded↝pure (read₂ i t≡i)      H~H ▸s = _ , read₂ i t≡i      , H~H
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (read₃ᵤ i xs l)    H~H ▸s =
     let _ , l′ , ∣S∣≡𝟙 = ▸↦arr→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s
      in _ , read₃ i xs (↦[-]→↦[] l′) (trans (sym (·-identityʳ _)) ∣S∣≡𝟙) , H~H
-  ungraded↝pure write₁             H~H ▸s = _ , write₁                       , H~H
-  ungraded↝pure (write₂ v t≡i)     H~H ▸s = _ , write₂ v t≡i                 , H~H
-  ungraded↝pure (write₃ i v t≡v)   H~H ▸s = _ , write₃ i v t≡v               , H~H
+  ungraded↝pure write₁             H~H ▸s = _ , write₁           , H~H
+  ungraded↝pure (write₂ v t≡i)     H~H ▸s = _ , write₂ v t≡i     , H~H
+  ungraded↝pure (write₃ i v t≡v)   H~H ▸s = _ , write₃ i v t≡v   , H~H
   ungraded↝pure {s = ⟪ H , _ , E , _ ⟫} (write₄ᵤ i v xs l) H~H ▸s =
     let o′ = array (xs [ i ]≔ v)
         H-arr , l′ , ∣S∣≡𝟙 = ▸↦arr→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s
      in H-arr ∙[ 𝟙 ]ₕ o′ , write₄ₚ i v xs l′ (trans (sym (·-identityʳ _)) ∣S∣≡𝟙) , ~ʰ-trans H~H (update-~ʰ l′) ∙ o′
-  ungraded↝pure free₁        H~H ▸s = _ , free₁                       , H~H
+  ungraded↝pure free₁        H~H ▸s = _ , free₁                  , H~H
   ungraded↝pure {s = ⟪ _ , _ , E , _ ⟫} (free₂ᵤ l)    H~H ▸s =
     let H-arr , l′ , ∣S∣≡𝟙 = ▸↦arr→↦[] ok {E = E} (~ʰ-lookup H~H l) ▸s
      in H-arr , free₂ l′ (trans (sym (·-identityʳ _)) ∣S∣≡𝟙) , ~ʰ-trans H~H (update-~ʰ l′)
+
+  pure↝ungraded
+    : {Γ : Con n} {Γ′ : Con m}
+    → {s @(⟪ Hₚ  , t  , E  , S  ⟫) : State Γ  Δ  A  B}
+    → {s′@(⟪ Hₚ′ , t′ , E′ , S′ ⟫) : State Γ′ Δ′ A′ B}
+    → ⟪ Hₚ , t , E , S ⟫ ⇒ₚ ⟪ Hₚ′ , t′ , E′ , S′ ⟫
+    → {Hᵤ : Heap Γ}
+    → Hₚ ~ʰ Hᵤ
+    → ∃ λ Hᵤ′ → ⟪ Hᵤ , t , E , S ⟫ ⇒ᵤ ⟪ Hᵤ′ , t′ , E′ , S′ ⟫ × Hₚ′ ~ʰ Hᵤ′
+  pure↝ungraded (var v l)            H~H = _ , varᵤ v (~ʰ-lookup H~H (↦[-]→↦ l))         , ~ʰ-trans (~ʰ-sym (update-~ʰ l)) H~H
+  pure↝ungraded app₁                 H~H = _ , app₁                                      , H~H
+  pure↝ungraded app₂ₑ                H~H = _ , app₂ₑ                                     , H~H ∙ _
+  pure↝ungraded (app₂ p≢𝟘)           H~H = _ , app₂ p≢𝟘                                  , H~H
+  pure↝ungraded (app₃ u)             H~H = _ , app₃ u                                    , H~H ∙ _
+  pure↝ungraded (suc₁ ¬value)        H~H = _ , suc₁ ¬value                               , H~H
+  pure↝ungraded (suc₂ t)             H~H = _ , suc₂ t                                    , H~H
+  pure↝ungraded (box₁ ¬value)        H~H = _ , box₁ ¬value                               , H~H
+  pure↝ungraded (box₂ v)             H~H = _ , box₂ v                                    , H~H
+  pure↝ungraded (prod₁ ¬v₁⊎¬v₂)      H~H = _ , prod₁ ¬v₁⊎¬v₂                             , H~H
+  pure↝ungraded (prod₂ v₁)           H~H = _ , prod₂ v₁                                  , H~H
+  pure↝ungraded (prod₃ v₁ v₂)        H~H = _ , prod₃ v₁ v₂                               , H~H
+  pure↝ungraded unit-elim₁           H~H = _ , unit-elim₁                                , H~H
+  pure↝ungraded unit-elim₂           H~H = _ , unit-elim₂                                , H~H
+  pure↝ungraded box-elim₁            H~H = _ , box-elim₁                                 , H~H
+  pure↝ungraded (box-elim₂ v)        H~H = _ , box-elim₂ v                               , H~H ∙ _
+  pure↝ungraded prod-elim₁           H~H = _ , prod-elim₁                                , H~H
+  pure↝ungraded (prod-elim₂ v₁ v₂)   H~H = _ , prod-elim₂ v₁ v₂                          , H~H ∙ _ ∙ _
+  pure↝ungraded linearly₁            H~H = _ , linearly₁                                 , H~H ∙ _
+  pure↝ungraded (linearly₂ v l)      H~H = _ , linearly₂ v (~ʰ-lookup H~H l)             , H~H
+  pure↝ungraded consume₁             H~H = _ , consume₁                                  , H~H
+  pure↝ungraded (consume₂ l _)       H~H = _ , consume₂ᵤ (~ʰ-lookup H~H (↦[-]→↦ l))      , ~ʰ-trans (~ʰ-sym (update-~ʰ l)) H~H
+  pure↝ungraded duplicate₁           H~H = _ , duplicate₁                                , H~H
+  pure↝ungraded (duplicate₂ l _)     H~H = _ , duplicate₂ᵤ (~ʰ-lookup H~H (↦[-]→↦ l))    , ~ʰ-trans (~ʰ-sym (update-~ʰ l)) H~H ∙ _ ∙ _
+  pure↝ungraded new₁                 H~H = _ , new₁                                      , H~H
+  pure↝ungraded (new₂ s t≡s)         H~H = _ , new₂ s t≡s                                , H~H
+  pure↝ungraded (new₃ s l _)         H~H = _ , new₃ᵤ s (~ʰ-lookup H~H (↦[-]→↦ l))        , ~ʰ-trans (~ʰ-sym (update-~ʰ l)) H~H ∙ _
+  pure↝ungraded read₁                H~H = _ , read₁                                     , H~H
+  pure↝ungraded (read₂ i t≡i)        H~H = _ , read₂ i t≡i                               , H~H
+  pure↝ungraded (read₃ i xs l _)     H~H = _ , read₃ᵤ i xs (~ʰ-lookup H~H (↦[-]→↦ l))    , H~H
+  pure↝ungraded write₁               H~H = _ , write₁                                    , H~H
+  pure↝ungraded (write₂ v t≡i)       H~H = _ , write₂ v t≡i                              , H~H
+  pure↝ungraded (write₃ i v t≡v)     H~H = _ , write₃ i v t≡v                            , H~H
+  pure↝ungraded (write₄ₚ i v xs l _) H~H = _ , write₄ᵤ i v xs (~ʰ-lookup H~H (↦[-]→↦ l)) , ~ʰ-trans (~ʰ-sym (update-~ʰ l)) H~H ∙ _
+  pure↝ungraded free₁                H~H = _ , free₁                                     , H~H
+  pure↝ungraded (free₂ l _)          H~H = _ , free₂ᵤ (~ʰ-lookup H~H (↦[-]→↦ l))         , ~ʰ-trans (~ʰ-sym (update-~ʰ l)) H~H
 
 module _ where
   open import ArrayLang.Heap.Equality.UpToRenaming 𝕄 𝟙-𝟙≡𝟘
@@ -217,13 +262,13 @@ module _ where
     ∀ {γ δ η} →
     γ ⨾ δ ⨾ η ▸ sₘ →
     sₚ′ ∼ˢ-⇐ sₘ
-  pure↝mutable (var {E = Eₚ} {x = xₚ} v (p , d)) {sₘ = ⟪ H , ` xₘ , Eₘ , S ⟫} (ρ , H~H , var [Eₚ]xₚ [Eₚ]xₚ≡ρ[Eₘ]xₘ , S~S) (_ , _ , ▸S , _) =
+  pure↝mutable (var {E = Eₚ} {x = xₚ} v l) {sₘ = ⟪ H , ` xₘ , Eₘ , S ⟫} (ρ , H~H , var [Eₚ]xₚ [Eₚ]xₚ≡ρ[Eₘ]xₘ , S~S) (_ , _ , ▸S , _) =
     let ∣S∣≢𝟘 = subst (_≢ 𝟘) (sym (~S→∣≡∣ S~S)) (▸∣S∣≢𝟘 ok ▸S) in
-    case ~ʰ-lookup′ H~H d ∣S∣≢𝟘 of λ { (H′ , yₘ , value v′ E′ , dₘ , [Eₚ]xₚ≡ρyₘ , refl , H′~H′) →
+    case ~ʰ-lookup′ H~H l ∣S∣≢𝟘 of λ { (H′ , yₘ , value v′ E′ , lₘ , [Eₚ]xₚ≡ρyₘ , refl , H′~H′) →
     let yₘ≡[Eₘ]xₘ = renVar-inj ρ _ _ (trans (sym [Eₚ]xₚ≡ρyₘ) [Eₚ]xₚ≡ρ[Eₘ]xₘ)
-        dₘ′ = subst₂ (_ ⊢_↦[-_] value v′ E′ ⨾ _) yₘ≡[Eₘ]xₘ (~S→∣≡∣ S~S) (p , dₘ)
+        lₘ′ = subst₂ (_ ⊢_↦[ _ -_] value v′ E′ ⨾ _) yₘ≡[Eₘ]xₘ (~S→∣≡∣ S~S) lₘ
      in ⟪ _ , ⦅ v′ ⦆ᵛ , E′ , S ⟫
-        red: (var v′ dₘ′)
+        red: (var v′ lₘ′)
         rel: (ρ , H′~H′ , ≡→~ᵗ (sym (ren-comp ρ _ ⦅ v ⦆ᵛ)) , S~S)
     }
   pure↝mutable app₁ {sₘ = ⟪ _ , _ ∘ _ , _ , _ ⟫} (ρ , H~H , t~t ∘ u~u , S~S) _ =
@@ -314,7 +359,7 @@ module _ where
   pure↝mutable (prod-elim₂ v₁ v₂) {sₘ = ⟪ H , ⟨ t₁ , t₂ ⟩ , E′ , let⊗[-]ₑ u E ∙ S ⟫} (ρ , H~H , ⟨ ~₁ , ~₂ ⟩ , let⊗[-]ₑ u~u ∙ S~S) _ =
     _
     red: prod-elim₂ (~ᵗ-subst-value ~₁ v₁) (~ᵗ-subst-value ~₂ v₂)
-    rel: (liftRen (liftRen ρ) , {! ~ʰ-cons-value (~ʰ-cons-value H~H ~₁ v₁ S~S)   !} , u~u , ~S-ren1 (~S-ren1 S~S))
+    rel: (liftRen (liftRen ρ) , {! ~ʰ-cons-value′ (~ʰ-cons-value′ ? ? ? ?) ? ? ?  !} , u~u , ~S-ren1 (~S-ren1 S~S))
   pure↝mutable linearly₁ {sₘ = ⟪ H , linearly t , E , S ⟫} (ρ , H~H , linearly t~t , S~S) _ =
     ⟪ H ∙[ 𝟙 ]ₕ lin , t , liftRen E , linearlyₑ vz ∙ ren1ˢ _ S ⟫
     red: linearly₁
@@ -427,12 +472,12 @@ module _ where
     case ~ʰ-lookup′ H~H d non-trivial of λ { (_ , yₘ , array xs , dₘ , [Eₚ]xₚ≡ρyₘ , refl , H′~H′) →
     let ∣S∣≡𝟙 = subst (_≡ 𝟙) (~S→∣≡∣ S~S) ∣S∣≡𝟙
         d′ = subst (_ ⊢_↦[ _ - _ ] _ ⨾ _) [Eₚ]xₚ≡ρ[Eₘ]xₘ d
-        H″ , array-update , ~ʰ = copy-on-write→in-place H~H d′ iFin v
+        H″ , array-update , ~ʰ = copy-on-write→in-place H~H d′ (xs [ iFin ]≔ v)
         yₘ≡[Eₘ]xₘ = renVar-inj ρ _ _ (trans (sym [Eₚ]xₚ≡ρyₘ) [Eₚ]xₚ≡ρ[Eₘ]xₘ)
         dₘ′ = subst (_ ⊢_↦[ _ ] _) yₘ≡[Eₘ]xₘ (lookup-𝟘 dₘ)
      in ⟪ H″ , ` xₘ , Eₘ , S ⟫
         red: write₄ₘ iFin v xs dₘ′ array-update ∣S∣≡𝟙
-        rel: (remapRen [Eₘ]xₘ ρ , ~ʰ , var [Eₘ]xₘ (sym (renVar-remap-vz ρ [Eₘ]xₘ)) , {!  !})
+        rel: (remapRen [Eₘ]xₘ ρ , ~ʰ , var [Eₘ]xₘ (sym (renVar-remap-vz ρ [Eₘ]xₘ)) , {! S~S !})
     }
   pure↝mutable free₁             {sₘ = ⟪ H , free arr , E , S ⟫} (ρ , H~H , free arr~arr , S~S) _ =
     _

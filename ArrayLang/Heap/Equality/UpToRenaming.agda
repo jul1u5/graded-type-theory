@@ -338,14 +338,15 @@ private
      → S ~S[ ρ ] S′
 ≡→~S refl = ~S-refl
 
+inv-ren-∣∣ : (ρ : Ren Γ′ Γ) → (S : Stack Γ A B) → ∣ renˢ ρ S ∣ ≡ ∣ S ∣
+inv-ren-∣∣ ρ ε = refl
+inv-ren-∣∣ ρ (e ∙ S) with is-linearlyₑ e
+... | true  = {!   !}
+... | false = {! e  !}
+
 ~S→∣≡∣ : S ~S[ ρ ] S′
        → ∣ S ∣ ≡ ∣ S′ ∣
-~S→∣≡∣ ε = refl
-~S→∣≡∣ {S = e ∙ S} {S′ = e′ ∙ S′} (e~e ∙ S~S) with is-linearlyₑ e | is-linearlyₑ e′
-... | true  | true  = refl
-... | true  | false = {!   !}
-... | false | true  = {!   !}
-... | false | false = cong₂ _·_ (~S→∣≡∣ S~S) (~ᵉ→∣≡∣ e~e)
+~S→∣≡∣ {ρ} {S′} ~ = trans (cong ∣_∣ (~S→≡ ~)) (inv-ren-∣∣ ρ S′)
 
 ------------------------------------------------------------------------
 -- Heap object equality up to weakening
@@ -367,9 +368,10 @@ data _~ᵒ[_]_ : HeapObject Γₚ A → Ren Γₚ Γₘ → HeapObject Γₘ A �
 ------------------------------------------------------------------------
 -- Heap equality up to renaming
 
-data DeadOrShared (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ) (xₚ : Γₚ ∋ᶜ A) : Set ℓ where
+data DeadOrShared (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ) : ∀ {A} → (xₚ : Γₚ ∋ᶜ A) → Set ℓ where
   shared[_⨾_⨾_]↦ₚ_↦ₘ_
     : (xₘ : Γₘ ∋ᶜ A)
+    → ∀ {xₚ}
     → renVar ρ xₘ ≡ xₚ
     → {oₘ : HeapObject Γₘ A}
     → {oₚ : HeapObject Γₚ A}
@@ -379,10 +381,10 @@ data DeadOrShared (Hₚ : Heap Γₚ) (ρ : Ren Γₚ Γₘ) (Hₘ : Heap Γₘ)
     → DeadOrShared Hₚ ρ Hₘ xₚ
 
   dead
-    : A ≡ Arr
+    : ∀ {xₚ}
     → (l𝟘 : Hₚ ⊢ xₚ ↦[ 𝟘 ])
     → (∄xₘ : ∀ xₘ → renVar ρ xₘ ≢ xₚ)
-    → DeadOrShared Hₚ ρ Hₘ xₚ
+    → DeadOrShared Hₚ ρ Hₘ {A = Arr} xₚ
 
 pattern shared↦ₚ_↦ₘ_ lₚ lₘ = shared[_⨾_⨾_]↦ₚ_↦ₘ_ _ refl refl lₚ lₘ
 pattern shared[_]↦ₚ_↦ₘ_ xₘ lₚ lₘ = shared[_⨾_⨾_]↦ₚ_↦ₘ_ xₘ refl refl lₚ lₘ
@@ -445,20 +447,20 @@ open _~ʰ[_]_
 ~ʰ-refl {H = H ∙[ p ]ₕ o} .classify (vs x) with ~ʰ-refl {H = H} .classify x
 ... | shared[ xₘ ⨾ refl ⨾ refl ]↦ₚ lₚ ↦ₘ lₘ =
   shared[ vs xₘ ⨾ renVar-step idRen xₘ ⨾ sym (renᵒ-interchange idRen _) ]↦ₚ vs[] lₚ ↦ₘ vs[] lₘ
-... | dead refl l𝟘 ∄xₘ = ⊥-elim (∄xₘ x renVar-id)
+... | dead l𝟘 ∄xₘ = ⊥-elim (∄xₘ x renVar-id)
 
-update-heap : {Γ : Con m} {H : Heap Γ} {x : Γ ∋ᶜ Arr}
-         → ∀ {size} → {xs : Vec Nat size}
-         → (i : Fin size) (v : Nat)
-         → H ⊢ x ↦[ 𝟙 ] array xs
-         → ∃ λ H′ → H ⊢ x ≔ (xs [ i ]≔ v) ⨾ H′
-update-heap i v (vz[ ren-o≡array ] 𝟙-𝟘≡𝟙) =
+update-heap : ∀ {size}
+            → {xs  : Vec Nat size}
+            → (xs' : Vec Nat size)
+            → H ⊢ x ↦[ 𝟙 ] array xs
+            → ∃ λ H′ → H ⊢ x ≔ xs' ⨾ H′
+update-heap xs' (vz[ ren-o≡array ] 𝟙-𝟘≡𝟙) =
   case renᵒ-array ren-o≡array of λ { refl →
     _ , vz
   }
-update-heap i v (vs[ ren-o≡array ] l) =
+update-heap xs' (vs[ ren-o≡array ] l) =
   case renᵒ-array ren-o≡array of λ { refl →
-  case update-heap i v l of λ { (H , u) →
+  case update-heap xs' l of λ { (H , u) →
     _ , vs u
   }
   }
@@ -483,9 +485,8 @@ lookup-𝟘 (vs[ ren-o≡ ] l) = vs[ ren-o≡ ] lookup-𝟘 l
            ⨾ sym (renᵒ-interchange ρ _)
            ]↦ₚ vs[] lₚ
             ↦ₘ vs[] lₘ
-    (dead refl (o , l𝟘) ∄xₘ) →
+    (dead (o , l𝟘) ∄xₘ) →
       dead
-        refl
         (ren1ᵒ o , (vs[] l𝟘))
         (λ xₘ [lift-ρ]xₘ≡vs-xₚ →
           case renVar-unlift-vs _ xₘ xₚ [lift-ρ]xₘ≡vs-xₚ of λ { (xₘ′ , refl , ρxₘ′≡xₚ) →
@@ -533,15 +534,15 @@ module _ ⦃ 𝟘-well-behaved : Has-well-behaved-zero M semiring-with-meet ⦄ 
           shared↦ₚ post-lookup p-q≡r lₚ ↦ₘ post-lookup p-q≡r lₘ
           }
           }
-        (dead refl (_ , l𝟘) ∄xₘ) →
+        (dead (_ , l𝟘) ∄xₘ) →
           case lookup-det𝟘 l𝟘 lₚ of λ { (refl , refl , refl , refl) →
-          dead refl (_ , post-lookup p-𝟘≡p lₚ) ∄xₘ
+          dead (_ , post-lookup p-𝟘≡p lₚ) ∄xₘ
           }
       (no ≢) → case ~ .classify xₚ of λ where
         (shared[ yₘ ⨾ refl ⨾ refl ]↦ₚ yₘ↦ ↦ₘ ρyₘ↦) →
           shared↦ₚ post-lookup-≢ (≢→Distinct (renVar ρ xₘ) (renVar ρ yₘ) ≢) lₚ yₘ↦
                 ↦ₘ post-lookup-≢ (≢→Distinct xₘ yₘ (λ where (refl , refl) → ≢ (refl , refl))) lₘ ρyₘ↦
-        (dead refl (_ , l𝟘) ∄xₘ) → dead refl (_ , post-lookup-≢ (≢→Distinct (renVar ρ xₘ) xₚ (λ where (refl , refl) → ∄xₘ xₘ refl) ) lₚ l𝟘) ∄xₘ
+        (dead (_ , l𝟘) ∄xₘ) → dead (_ , post-lookup-≢ (≢→Distinct (renVar ρ xₘ) xₚ (λ where (refl , refl) → ∄xₘ xₘ refl) ) lₚ l𝟘) ∄xₘ
 
   ~ʰ-lookup : {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
               {ρ : Ren Γₚ Γₘ}
@@ -563,10 +564,10 @@ module _ ⦃ 𝟘-well-behaved : Has-well-behaved-zero M semiring-with-meet ⦄ 
       }
       }
       }
-    (dead A≡Arr (o , l𝟘) ∄xₘ) →
+    (dead (o , l𝟘) ∄xₘ) →
       case A≢Arr⊎p≢𝟘 of λ where
         (inj₁ A≢Arr) →
-          ⊥-elim (A≢Arr A≡Arr)
+          ⊥-elim (A≢Arr refl)
         (inj₂ p≢𝟘) →
           let p≡𝟘 , _ = lookup-det (↦[-]→↦[] l) l𝟘
           in ⊥-elim (p≢𝟘 p≡𝟘)
@@ -593,50 +594,60 @@ module _ ⦃ 𝟘-well-behaved : Has-well-behaved-zero M semiring-with-meet ⦄ 
       Hₘ′ , xₘ , _ , lₘ′ , refl , refl , ~ʰ-post-lookup ~ l lₘ′
       }
       }
-    (dead refl (_ , l𝟘) ∄xₘ) →
+    (dead (_ , l𝟘) ∄xₘ) →
       let p≡𝟘 , _ = lookup-det (↦[-]→↦[] l) l𝟘
           r , p-q≡r = ↦[-]→-≡ l
       in ⊥-elim (𝟘-q≢p q≢𝟘 (subst (_- _ ≡ r) p≡𝟘 p-q≡r))
 
   copy-on-write→in-place : {Hₚ Hₚ′ : Heap Γₚ} {Hₘ : Heap Γₘ}
-                        → {x : Γₘ ∋ᶜ Arr}
-                        → ∀ {size} → {xs : Vec Nat size}
-                        → Hₚ ~ʰ[ ρ ] Hₘ
-                        → Hₚ ⊢ renVar ρ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ Hₚ′
-                        → (i : Fin size) (v : Nat)
-                        → ∃ λ Hₘ′ → Hₘ ⊢ x ≔ (xs [ i ]≔ v) ⨾ Hₘ′
-                                  × Hₚ′ ∙[ 𝟙 ]ₕ array (xs [ i ]≔ v) ~ʰ[ remapRen x ρ ] Hₘ′
-  copy-on-write→in-place {ρ} {x} ~ l i v =
-    case lookup→write l i v of λ { (_ , u) →
+                         → {x : Γₘ ∋ᶜ Arr}
+                         → ∀ {size}
+                         → {xs : Vec Nat size}
+                         → Hₚ ~ʰ[ ρ ] Hₘ
+                         → Hₚ ⊢ renVar ρ x ↦[ 𝟙 - 𝟙 ] array xs ⨾ Hₚ′
+                         -- → γ ▸ʰ Hₘ
+                         -- γ ⟨ x ⟩ ≡ 𝟙
+                         -- γ ⟨ x ⟩ ≡ 𝟙
+                         → (xs' : Vec Nat size)
+                         → ∃ λ Hₘ′ → Hₘ ⊢ x ≔ xs' ⨾ Hₘ′
+                                   × Hₚ′ ∙[ 𝟙 ]ₕ array xs' ~ʰ[ remapRen x ρ ] Hₘ′
+  copy-on-write→in-place {ρ} {x} ~ l xs' =
     case ~ʰ-lookup ~ (inj₂ non-trivial) (lookup-𝟘 l) of λ { (_ , l′ , _) →
-    case update-heap i v (↦[-]→↦[] l′) of λ { (Hₘ′ , u′) →
+    case update-heap xs' (↦[-]→↦[] l′) of λ { (Hₘ′ , u′) →
     Hₘ′ , u′ , upToRen λ where
       vz →
         shared[ x
-            ⨾ renVar-remap-vz ρ x
-            ⨾ refl
-            ]↦ₚ vz[] p-𝟘≡p
-              ↦ₘ post-update u′
+              ⨾ renVar-remap-vz ρ x
+              ⨾ refl
+              ]↦ₚ vz[] p-𝟘≡p
+               ↦ₘ post-update u′
       (vs xₚ) →
         case dec-var xₚ (renVar ρ x) of λ where
+          (yes (refl , refl)) →
+            dead
+              (array _ , vs[] post-lookup 𝟙-𝟙≡𝟘 l)
+              (λ xₘ [remap-x-ρ]xₘ≡vs-ρx →
+                ¬Distinct-refl
+                  (renVar ρ x)
+                  (renVar-unremap-≢ ρ xₘ x (vs renVar ρ x) [remap-x-ρ]xₘ≡vs-ρx))
           (no ≢) → case ~ .classify xₚ of λ where
             (shared[ xₘ ⨾ ρxₘ≡xₚ ⨾ ρoₘ≡oₚ ]↦ₚ lₚ ↦ₘ lₘ) →
               shared[ xₘ
-                  ⨾ renVar-remap-vs ρ xₘ x xₚ ρxₘ≡xₚ
-                      (≢→Distinct xₘ x λ where
-                        (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
-                  ⨾ {! renᵒ→renᵒ-remap ρ x ρoₘ≡oₚ !}
-                  ]↦ₚ vs[]
-                      post-lookup-≢
-                        (≢→Distinct (renVar ρ x) xₚ λ where (refl , refl) → ≢ (refl , refl))
-                        l lₚ
-                    ↦ₘ
+                    ⨾ renVar-remap-vs ρ xₘ x xₚ ρxₘ≡xₚ
+                        (≢→Distinct xₘ x λ where
+                          (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
+                    ⨾ {! ρoₘ≡oₚ !}
+                    ]↦ₚ
+                      vs[]
+                        post-lookup-≢
+                          (≢→Distinct (renVar ρ x) xₚ λ where (refl , refl) → ≢ (refl , refl))
+                          l lₚ
+                     ↦ₘ
                       post-update-≢
                         (≢→Distinct x xₘ λ where (refl , refl) → ≢ (refl , sym ρxₘ≡xₚ))
                         u′ lₘ
-            (dead refl (o , xₚ↦[𝟘]) ∄xₘ) →
+            (dead (o , xₚ↦[𝟘]) ∄xₘ) →
               dead
-                refl
                 ( ren1ᵒ o
                 , vs[]
                     post-lookup-≢
@@ -644,15 +655,6 @@ module _ ⦃ 𝟘-well-behaved : Has-well-behaved-zero M semiring-with-meet ⦄ 
                       l xₚ↦[𝟘]
                 )
                 (λ xₘ [remap-x-ρ]≡vs-xₚ → ∄xₘ xₘ (renVar-unremap-vs ρ xₘ x xₚ [remap-x-ρ]≡vs-xₚ))
-          (yes (refl , refl)) →
-            dead
-              refl
-              (array _ , vs[] post-lookup 𝟙-𝟙≡𝟘 l)
-              (λ xₘ [remap-x-ρ]xₘ≡vs-ρx →
-                ¬Distinct-refl
-                  (renVar ρ x)
-                  (renVar-unremap-≢ ρ xₘ x (vs renVar ρ x) [remap-x-ρ]xₘ≡vs-ρx))
-    }
     }
     }
 
@@ -694,5 +696,20 @@ module _ ⦃ 𝟘-well-behaved : Has-well-behaved-zero M semiring-with-meet ⦄ 
     subst₂
       (λ ∣S∣ v → Hₚ ∙[ ∣ Sₚ ∣ · p ]ₕ v ~ʰ[ liftRen ρ ] Hₘ ∙[ ∣S∣ · p ]ₕ value (tₘ , ~ᵗ-subst-value ~ᵗ vₚ) Eₘ)
       (~S→∣≡∣ ~S)
-      {!   !}
+      {!sym (trans (~ᵗ→≡ ~ᵗ) (ren-comp _ _ _)) !}
+      (~ʰ′-extend ~ʰ)
+
+  ~ʰ-cons-value′ : {tₚ : Δₚ ⊢ A} {tₘ : Δₘ ⊢ A}
+                → Hₚ ~ʰ[ ρ ] Hₘ
+                → (t~t : ren Eₚ tₚ ~ᵗ[ ρ ] ren Eₘ tₘ)
+                → (vₚ : Value tₚ)
+                → Sₚ ~S[ ρ ] Sₘ
+                → (Hₚ ∙[ ∣ Sₚ ∣ ]ₕ value (tₚ , vₚ) Eₚ)
+                    ~ʰ[ liftRen ρ ]
+                  (Hₘ ∙[ ∣ Sₘ ∣ ]ₕ value (tₘ , ~ᵗ-subst-value t~t vₚ) Eₘ)
+  ~ʰ-cons-value′ {Hₚ} {ρ} {Hₘ} {Eₚ} {Eₘ} {Sₚ} {tₚ} {tₘ} ~ʰ ~ᵗ vₚ ~S =
+    subst₂
+      (λ ∣S∣ v → Hₚ ∙[ ∣ Sₚ ∣ ]ₕ v ~ʰ[ liftRen ρ ] Hₘ ∙[ ∣S∣ ]ₕ value (tₘ , ~ᵗ-subst-value ~ᵗ vₚ) Eₘ)
+      (~S→∣≡∣ ~S)
+      {!sym (trans (~ᵗ→≡ ~ᵗ) (ren-comp _ _ _)) !}
       (~ʰ′-extend ~ʰ)
